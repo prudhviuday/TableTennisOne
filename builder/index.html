@@ -172,7 +172,7 @@
       document.querySelectorAll("[data-view]").forEach(button => button.addEventListener("click", () => {
         state.view = button.dataset.view;
         document.querySelectorAll("[data-view]").forEach(option => option.classList.toggle("active", option === button));
-        if (model) targetYaw = state.view === "back" ? Math.PI : 0;
+        if (model) { autoRotate = false; $("autoRotate").textContent = "▶"; model.rotation.y = state.view === "back" ? Math.PI : 0; model.rotation.x = -0.08; }
       }));
       $("addBuild").addEventListener("click", () => {
         if (!window.SpinCraftCart) { window.alert("The cart could not be loaded. Please refresh the page."); return; }
@@ -181,7 +181,7 @@
       });
 
       let renderer, scene, camera, model, frontMaterial, backMaterial, bladeMaterial, handleMaterial;
-      let targetYaw = 0, targetPitch = -0.08, dragging = false, previousX = 0, previousY = 0, autoRotate = true;
+      let dragging = false, previousX = 0, previousY = 0, autoRotate = true;
       const canvas = $("racket-canvas");
       const stage = $("stage");
       const fallback = $("stageFallback");
@@ -273,7 +273,6 @@
 
         const backGeometry = faceGeometry.clone();
         backGeometry.rotateY(Math.PI);
-        backGeometry.translate(0, 0, -0.132);
         const back = backhands[state.backhand];
         const backTexture = makeTexture(back.color, "#ffffff", true);
         backMaterial = new THREE.MeshStandardMaterial({ map: backTexture, color: 0xffffff, roughness: back.roughness, metalness: 0.01, side: THREE.DoubleSide });
