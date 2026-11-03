@@ -63,7 +63,7 @@
       </section>
       <aside>
         <section class="config-card">
-          <div class="config-top"><strong>Configure your racket</strong><span>4 choices · live pricing</span></div>
+          <div class="config-top"><strong>Configure your racket</strong><span>5 choices · live pricing</span></div>
           <div class="config-section">
             <div class="section-title"><b>01 · CHOOSE YOUR BLADE</b><span>Core construction</span></div>
             <div class="option-list" id="bladeOptions">
@@ -99,7 +99,7 @@
             <div class="summary-line"><span>Forehand · Red</span><b id="sumForehand">Blaze Pro</b></div>
             <div class="summary-line"><span>Backhand · Black</span><b id="sumBackhand">Night Control</b></div>
             <div class="summary-line"><span>Thickness / handle</span><b id="sumFinish">2.1 mm · Flared</b></div>
-            <div class="summary-total"><span>BUILD TOTAL</span><strong id="totalPrice">₹10,997</strong></div>
+            <div class="summary-total"><span>BUILD TOTAL</span><strong id="totalPrice">₹11,497</strong></div>
             <button class="btn add-build" id="addBuild" type="button">Add custom racket to cart <span aria-hidden="true">→</span></button>
             <p class="shipping-note">Custom configuration saved in your browser cart. Checkout is not yet connected.</p>
           </div>
@@ -202,7 +202,7 @@
         for (let i = -256; i < 512; i += 25) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i + 256, 256); ctx.stroke(); }
         ctx.globalAlpha = 1;
         const texture = new THREE.CanvasTexture(canvasTexture);
-        texture.wrapS = THREE.RepeatWrapping; texture.wrapT = THREE.RepeatWrapping;
+        texture.wrapS = THREE.RepeatWrapping; texture.wrapT = THREE.RepeatWrapping; texture.encoding = THREE.sRGBEncoding;
         texture.repeat.set(2.2, 2.2); texture.anisotropy = 4;
         return texture;
       }
