@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fff8f3">
+  <meta name="description" content="Build a custom table-tennis racket. Choose a blade, forehand and backhand rubbers, handle shape and sponge thickness, then inspect your racket in interactive 3D.">
+  <title>Custom Racket Builder · SpinCraft</title>
+  <style>
+    :root{--orange:#e96745;--orange-dark:#b9422c;--cream:#fff8f3;--paper:#fffdfb;--ink:#272321;--muted:#786e69;--line:#eaded8;--dark:#292320;--green:#47715e}
+    *{box-sizing:border-box}body{margin:0;background:var(--cream);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}a{color:inherit;text-decoration:none}button,select{font:inherit}button{cursor:pointer}
+    .announcement{background:var(--dark);color:#f7e9e2;text-align:center;padding:9px 15px;font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}header{position:sticky;top:0;z-index:20;background:#fffdfbeF;border-bottom:1px solid var(--line);backdrop-filter:blur(14px)}
+    .nav{height:72px;max-width:1280px;margin:auto;padding:0 26px;display:flex;align-items:center;justify-content:space-between;gap:25px}.brand{display:inline-flex;align-items:center;gap:9px;font-size:23px;font-weight:950;letter-spacing:-.075em;white-space:nowrap}.brand-mark{width:29px;height:29px;border-radius:50%;background:var(--orange);position:relative;overflow:hidden;display:inline-block}.brand-mark:after{content:"";position:absolute;width:4px;height:42px;background:#fff;left:14px;top:-7px;transform:rotate(34deg)}.brand-name span{color:var(--orange-dark)}nav{display:flex;align-items:center;gap:27px;color:#625852;font-size:12px;font-weight:800}nav a:hover{color:var(--orange-dark)}.nav-actions{display:flex;gap:9px;align-items:center}.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid transparent;border-radius:8px;padding:12px 17px;background:var(--orange);color:#fff;font-size:12px;font-weight:900;transition:background .18s,transform .18s}.btn:hover{background:var(--orange-dark);transform:translateY(-1px)}.btn-outline{background:#fff;color:var(--orange-dark);border-color:#edc5b7}.btn-outline:hover{background:#fff1eb}.icon-button{height:40px;width:42px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);font-size:18px;position:relative;cursor:pointer}.cart-count{position:absolute;right:-6px;top:-6px;min-width:18px;height:18px;padding:1px 4px;display:grid;place-items:center;border-radius:20px;background:var(--orange-dark);color:#fff;font-size:10px;font-weight:900;border:2px solid white}
+    main{max-width:1280px;margin:auto;padding:35px 26px 70px}.breadcrumb{font-size:11px;color:#988981;margin-bottom:20px}.breadcrumb a{color:var(--orange-dark);font-weight:850}.page-intro{display:flex;justify-content:space-between;align-items:end;gap:20px;margin-bottom:25px}.eyebrow{color:var(--orange-dark);font-size:10px;font-weight:950;letter-spacing:.18em;text-transform:uppercase}.page-intro h1{font-size:clamp(36px,4.3vw,54px);line-height:1;letter-spacing:-.08em;margin:9px 0 8px}.page-intro p{max-width:560px;margin:0;color:var(--muted);font-size:12px;line-height:1.7}.step-indicator{display:flex;gap:8px;align-items:center;white-space:nowrap;padding-bottom:5px}.step-pill{border:1px solid var(--line);border-radius:30px;padding:8px 11px;background:#fffdfb;color:#887a73;font-size:10px;font-weight:900}.step-pill.active{border-color:#efc0af;background:#fff0e9;color:var(--orange-dark)}
+    .builder-layout{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(380px,.88fr);gap:18px;align-items:start}.stage-card{border:1px solid var(--line);border-radius:17px;overflow:hidden;background:var(--paper);box-shadow:0 18px 45px #5a2c1a0c}.stage-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:17px 19px;border-bottom:1px solid var(--line)}.stage-head strong{display:block;font-size:12px}.stage-head small{display:block;color:var(--muted);font-size:10px;margin-top:4px}.live-pill{display:flex;align-items:center;gap:6px;color:var(--green);font-size:9px;font-weight:950;letter-spacing:.12em;text-transform:uppercase}.live-dot{width:6px;height:6px;background:#4e9871;border-radius:50%;box-shadow:0 0 0 4px #4e98711a}
+    .stage{height:580px;position:relative;overflow:hidden;background:radial-gradient(ellipse at 50% 44%,#fff5ef 0%,#f5e4da 53%,#eed4c7 100%);touch-action:none;cursor:grab}.stage:active{cursor:grabbing}.stage:before{content:"";position:absolute;width:390px;height:390px;border-radius:50%;border:1px solid #bd8e7b3b;left:50%;top:47%;transform:translate(-50%,-50%)}.stage:after{content:"SPINCRAFT";position:absolute;right:-38px;top:50%;transform:translateY(-50%) rotate(-90deg);font-size:70px;font-weight:950;letter-spacing:.13em;color:#b77c6830;pointer-events:none}
+    #racket-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:1;outline:none}.stage-fallback{display:none;position:absolute;inset:0;z-index:2;align-items:center;justify-content:center;flex-direction:column;gap:10px;color:#8e6050;text-align:center;font-size:12px;padding:20px}.stage-fallback strong{font-size:17px;color:#5e392d}
+    .view-controls{position:absolute;z-index:4;top:16px;left:16px;display:flex;gap:5px;background:#fffdf0cc;border:1px solid #ffffffbb;border-radius:9px;padding:4px;backdrop-filter:blur(8px)}.view-button{border:0;background:transparent;color:#806b62;font-size:10px;font-weight:900;border-radius:6px;padding:8px 10px}.view-button.active{background:#fff;color:var(--orange-dark);box-shadow:0 2px 9px #5a2c1a14}
+    .stage-actions{position:absolute;z-index:4;top:16px;right:16px;display:flex;gap:6px}.round-action{width:34px;height:34px;border:1px solid #ffffffc7;border-radius:9px;background:#fffdf0cc;color:#715c53;font-size:14px;backdrop-filter:blur(8px)}.round-action:hover{background:white;color:var(--orange-dark)}.stage-hint{position:absolute;z-index:4;bottom:16px;left:50%;transform:translateX(-50%);white-space:nowrap;border:1px solid #ffffffba;border-radius:30px;padding:8px 12px;background:#fffdf0c9;color:#806c63;font-size:9px;font-weight:800;backdrop-filter:blur(8px)}
+    .stage-footer{padding:13px 18px;display:flex;justify-content:space-between;gap:12px;color:var(--muted);font-size:10px}.stage-footer strong{color:var(--ink)}
+    .config-card{background:#fffdfb;border:1px solid var(--line);border-radius:17px;padding:19px 19px 18px;box-shadow:0 18px 45px #5a2c1a0c}.config-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}.config-top strong{font-size:14px}.config-top span{font-size:10px;color:var(--muted)}
+    .config-section{padding:16px 0;border-top:1px solid #f0e7e2}.config-section:first-of-type{border-top:0;padding-top:0}.section-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}.section-title b{font-size:10px;letter-spacing:.1em}.section-title span{font-size:9px;color:#9b8b84}
+    .option-list{display:grid;gap:7px}.option{width:100%;text-align:left;display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:9px;background:#fff;transition:border-color .15s,background .15s}.option:hover{border-color:#e9b29f}.option.selected{border:1.5px solid var(--orange);background:#fff7f3;padding:9.5px}.option-mark{height:32px;width:32px;border-radius:8px;background:#f4e0d6;display:grid;place-items:center;color:#a14931;font-size:12px;font-weight:950}.option-mark.blue{background:#e1edf1;color:#306d85}.option-mark.wood{background:#eee1d3;color:#855939}.option-copy b{display:block;font-size:11px}.option-copy small{display:block;font-size:9px;line-height:1.45;color:var(--muted);margin-top:3px}.option-price{font-size:10px;font-weight:900;white-space:nowrap;color:#55453e}.selected-check{width:16px;height:16px;border-radius:50%;display:grid;place-items:center;background:var(--orange);color:white;font-size:10px;position:absolute;opacity:0}.option.selected .option-price:after{content:"✓";display:inline-grid;place-items:center;width:15px;height:15px;margin-left:6px;background:var(--orange);color:white;border-radius:50%;font-size:9px}
+    .rubber-heading{display:flex;align-items:center;gap:8px}.side-dot{height:9px;width:9px;border-radius:50%;background:#df493e;box-shadow:0 0 0 3px #df493e1b}.side-dot.black{background:#292b31;box-shadow:0 0 0 3px #292b311b}.side-caption{font-size:9px;color:var(--muted);font-weight:750;margin-left:auto}
+    .compact-options{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.compact-option{border:1px solid var(--line);background:#fff;border-radius:9px;padding:9px 8px;text-align:left;min-width:0}.compact-option.selected{border:1.5px solid var(--orange);background:#fff7f3;padding:8.5px}.compact-option b{display:block;font-size:10px;line-height:1.3}.compact-option small{display:block;color:var(--muted);font-size:8px;margin-top:5px;line-height:1.35}.compact-option strong{display:block;font-size:9px;margin-top:7px;color:#574740}
+    .setting-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px}.setting-row label{font-size:10px;font-weight:850}.segmented{display:flex;gap:4px;background:#f5eee9;padding:3px;border-radius:8px}.segment{border:0;background:transparent;border-radius:6px;padding:7px 9px;color:#796b64;font-size:9px;font-weight:900}.segment.selected{background:#fff;color:var(--orange-dark);box-shadow:0 1px 4px #4a21141c}
+    .summary{margin-top:15px;background:#f8f1ed;border:1px solid #efe2db;border-radius:11px;padding:13px}.summary-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}.summary-head b{font-size:11px}.summary-head span{font-size:9px;color:var(--green);font-weight:900}.summary-line{display:flex;justify-content:space-between;gap:10px;padding:5px 0;color:#7a6b64;font-size:9px}.summary-line b{font-size:9px;color:#403832;text-align:right}.summary-total{border-top:1px solid #e6d8d0;margin-top:7px;padding-top:12px;display:flex;align-items:center;justify-content:space-between}.summary-total span{font-size:10px;font-weight:850;color:#6e5f58}.summary-total strong{font-size:24px;letter-spacing:-.06em}.add-build{width:100%;margin-top:12px;padding:14px 17px}.shipping-note{font-size:9px;color:#9a8a83;text-align:center;margin:9px 0 0}
+    .tips{margin-top:16px;border:1px solid var(--line);border-radius:12px;background:#fffdfb;padding:14px 16px;display:flex;gap:11px;align-items:flex-start}.tips-icon{width:28px;height:28px;border-radius:8px;background:#fff0e9;color:var(--orange-dark);display:grid;place-items:center;font-size:13px;flex:none}.tips b{font-size:10px;display:block;margin:1px 0 4px}.tips p{margin:0;font-size:9px;line-height:1.55;color:var(--muted)}
+    footer{max-width:1280px;margin:auto;padding:24px 26px 35px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap;color:#897b74;font-size:10px}
+    @media(max-width:980px){.builder-layout{grid-template-columns:minmax(0,1fr) minmax(340px,.9fr)}.stage{height:520px}.step-indicator{display:none}}
+    @media(max-width:760px){.nav{height:66px;padding:0 16px}.nav nav,.account-link{display:none}main{padding:28px 15px 50px}.page-intro{display:block}.page-intro h1{font-size:42px}.builder-layout{grid-template-columns:1fr}.stage{height:460px}.config-card{padding:16px}.compact-options{grid-template-columns:repeat(3,minmax(0,1fr))}.stage-footer{font-size:9px}}
+    @media(max-width:430px){.stage{height:390px}.view-button{padding:7px 8px}.stage:before{width:290px;height:290px}.compact-options{gap:5px}.compact-option{padding:8px 6px}.compact-option.selected{padding:7.5px 5.5px}}
+    @media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important}}
+  </style>
+</head>
+<body>
+  <div class="announcement">Free delivery on orders above ₹6,000 · Made for the long rally</div>
+  <header><div class="nav">
+    <a class="brand" href="/" aria-label="SpinCraft home"><i class="brand-mark"></i><span class="brand-name">spin<span>craft</span></span></a>
+    <nav aria-label="Main navigation"><a href="/shop/">Shop all</a><a href="/shop/#paddles">Blades</a><a href="/shop/#rubbers">Rubbers</a><a href="/builder/">Custom racket</a></nav>
+    <div class="nav-actions"><a class="btn btn-outline account-link" href="/login/">Account</a><button class="icon-button" data-cart-open aria-label="Open shopping cart">♧<span class="cart-count" data-cart-count>0</span></button></div>
+  </div></header>
+  <main>
+    <div class="breadcrumb"><a href="/">Home</a> / Custom racket builder</div>
+    <div class="page-intro">
+      <div><div class="eyebrow">The SpinCraft custom lab</div><h1>Built around your game.</h1><p>Choose your blade, build both sides of your racket and inspect the result in 3D. Drag to rotate, switch sides and fine-tune your setup.</p></div>
+      <div class="step-indicator"><span class="step-pill active">01 · Blade</span><span class="step-pill active">02 · Rubbers</span><span class="step-pill active">03 · Finish</span></div>
+    </div>
+    <div class="builder-layout">
+      <section class="stage-card" aria-label="Interactive 3D racket preview">
+        <div class="stage-head"><div><strong>Your racket · Live preview</strong><small>Materials and components update as you build</small></div><div class="live-pill"><i class="live-dot"></i> Live model</div></div>
+        <div class="stage" id="stage">
+          <div class="view-controls" role="group" aria-label="Racket side">
+            <button class="view-button active" data-view="front" type="button">Forehand</button>
+            <button class="view-button" data-view="back" type="button">Backhand</button>
+          </div>
+          <div class="stage-actions"><button class="round-action" id="resetView" type="button" aria-label="Reset racket view" title="Reset view">↺</button><button class="round-action" id="autoRotate" type="button" aria-label="Toggle slow rotation" title="Toggle slow rotation">Ⅱ</button></div>
+          <canvas id="racket-canvas" aria-label="Interactive three-dimensional table tennis racket. Drag to rotate and use the mouse wheel to zoom."></canvas>
+          <div class="stage-fallback" id="stageFallback"><strong>Your custom racket</strong><span>3D preview needs WebGL support. Your selected components and price will still work.</span></div>
+          <div class="stage-hint">↔ Drag to rotate · Scroll to zoom</div>
+        </div>
+        <div class="stage-footer"><span><strong id="previewBlade">Carbon Pro</strong> · <span id="previewGrip">Flared grip</span></span><span>Front and back surfaces are modelled separately</span></div>
+      </section>
+      <aside>
+        <section class="config-card">
+          <div class="config-top"><strong>Configure your racket</strong><span>5 choices · live pricing</span></div>
+          <div class="config-section">
+            <div class="section-title"><b>01 · CHOOSE YOUR BLADE</b><span>Core construction</span></div>
+            <div class="option-list" id="bladeOptions">
+              <button class="option selected" type="button" data-kind="blade" data-id="carbon"><span class="option-mark">C</span><span class="option-copy"><b>Carbon Pro</b><small>7-ply carbon · Fast, direct attack</small></span><span class="option-price">₹6,499</span></button>
+              <button class="option" type="button" data-kind="blade" data-id="control"><span class="option-mark blue">7</span><span class="option-copy"><b>Control 7</b><small>All-wood feel · Balanced touch</small></span><span class="option-price">₹4,999</span></button>
+              <button class="option" type="button" data-kind="blade" data-id="allwood"><span class="option-mark wood">W</span><span class="option-copy"><b>Allround Classic</b><small>5-ply wood · Forgiving control</small></span><span class="option-price">₹3,499</span></button>
+            </div>
+          </div>
+          <div class="config-section">
+            <div class="section-title"><div class="rubber-heading"><i class="side-dot"></i><b>02 · FOREHAND RUBBER</b></div><span class="side-caption">Red side</span></div>
+            <div class="compact-options" id="forehandOptions">
+              <button class="compact-option selected" type="button" data-kind="forehand" data-id="blaze"><b>Blaze Pro</b><small>Spin + speed</small><strong>₹2,499</strong></button>
+              <button class="compact-option" type="button" data-kind="forehand" data-id="turbo"><b>Turbo Spin</b><small>High grip</small><strong>₹2,999</strong></button>
+              <button class="compact-option" type="button" data-kind="forehand" data-id="power"><b>Power Tacky</b><small>Heavy spin</small><strong>₹2,199</strong></button>
+            </div>
+          </div>
+          <div class="config-section">
+            <div class="section-title"><div class="rubber-heading"><i class="side-dot black"></i><b>03 · BACKHAND RUBBER</b></div><span class="side-caption">Black side</span></div>
+            <div class="compact-options" id="backhandOptions">
+              <button class="compact-option selected" type="button" data-kind="backhand" data-id="night"><b>Night Control</b><small>Touch + control</small><strong>₹1,999</strong></button>
+              <button class="compact-option" type="button" data-kind="backhand" data-id="soft"><b>Soft Touch</b><small>Easy blocking</small><strong>₹1,799</strong></button>
+              <button class="compact-option" type="button" data-kind="backhand" data-id="turbo"> <b>Turbo Spin</b><small>Active backhand</small><strong>₹2,499</strong></button>
+            </div>
+          </div>
+          <div class="config-section">
+            <div class="section-title"><b>04 · FINISH & FEEL</b><span>Personalise the handle</span></div>
+            <div class="setting-row"><label for="thickness">Sponge thickness</label><div class="segmented" id="thicknessOptions"><button class="segment" data-thickness="1.8" type="button">1.8</button><button class="segment" data-thickness="2.0" type="button">2.0</button><button class="segment selected" data-thickness="2.1" type="button">2.1</button><button class="segment" data-thickness="max" type="button">MAX</button></div></div>
+            <div class="setting-row"><label>Handle shape</label><div class="segmented" id="gripOptions"><button class="segment selected" data-grip="flared" type="button">FL</button><button class="segment" data-grip="straight" type="button">ST</button><button class="segment" data-grip="anatomic" type="button">AN</button></div></div>
+          </div>
+          <div class="summary">
+            <div class="summary-head"><b>Your build summary</b><span>✓ Configured</span></div>
+            <div class="summary-line"><span>Blade</span><b id="sumBlade">Carbon Pro</b></div>
+            <div class="summary-line"><span>Forehand · Red</span><b id="sumForehand">Blaze Pro</b></div>
+            <div class="summary-line"><span>Backhand · Black</span><b id="sumBackhand">Night Control</b></div>
+            <div class="summary-line"><span>Thickness / handle</span><b id="sumFinish">2.1 mm · Flared</b></div>
+            <div class="summary-total"><span>BUILD TOTAL</span><strong id="totalPrice">₹11,497</strong></div>
+            <button class="btn add-build" id="addBuild" type="button">Add custom racket to cart <span aria-hidden="true">→</span></button>
+            <p class="shipping-note">Custom configuration saved in your browser cart. Checkout is not yet connected.</p>
+          </div>
+        </section>
+        <div class="tips"><span class="tips-icon">✳</span><div><b>Not sure where to start?</b><p>Choose a balanced blade with a grippy forehand rubber and a controlled backhand rubber. The best setup depends on your technique, feel and playing style.</p></div></div>
+      </aside>
+    </div>
+  </main>
+  <footer><span>© 2026 SpinCraft · Custom racket preview</span><span><a href="/">Home</a> · <a href="/shop/">Shop equipment</a></span><span>Prices shown in INR</span></footer>
+  <script src="/assets/store.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+    (function () {
+      const blades = {
+        carbon: { name: "Carbon Pro", price: 6499, color: 0x9c513a, detail: "7-ply carbon" },
+        control: { name: "Control 7", price: 4999, color: 0x6d7d80, detail: "All-wood feel" },
+        allwood: { name: "Allround Classic", price: 3499, color: 0xb0794e, detail: "5-ply wood" }
+      };
+      const forehands = {
+        blaze: { name: "Blaze Pro", price: 2499, color: 0xe54637, detail: "Spin + speed", roughness: 0.72 },
+        turbo: { name: "Turbo Spin", price: 2999, color: 0xd9382d, detail: "High grip", roughness: 0.58 },
+        power: { name: "Power Tacky", price: 2199, color: 0xb82f26, detail: "Heavy spin", roughness: 0.9 }
+      };
+      const backhands = {
+        night: { name: "Night Control", price: 1999, color: 0x202126, detail: "Touch + control", roughness: 0.82 },
+        soft: { name: "Soft Touch", price: 1799, color: 0x34383d, detail: "Easy blocking", roughness: 0.92 },
+        turbo: { name: "Turbo Spin", price: 2499, color: 0x17191e, detail: "Active backhand", roughness: 0.62 }
+      };
+      const thicknesses = { "1.8": 0, "2.0": 150, "2.1": 250, "max": 400 };
+      const grips = {
+        flared: { name: "Flared", price: 0, width: 1.0 },
+        straight: { name: "Straight", price: 300, width: 0.9 },
+        anatomic: { name: "Anatomic", price: 400, width: 1.08 }
+      };
+      const state = { blade: "carbon", forehand: "blaze", backhand: "night", thickness: "2.1", grip: "flared", view: "front" };
+      const money = (n) => "₹" + n.toLocaleString("en-IN");
+      const getTotal = () => blades[state.blade].price + forehands[state.forehand].price + backhands[state.backhand].price + (thicknesses[state.thickness] * 2) + grips[state.grip].price;
+      const $ = (id) => document.getElementById(id);
+
+      function refreshSummary() {
+        $("sumBlade").textContent = blades[state.blade].name;
+        $("sumForehand").textContent = forehands[state.forehand].name;
+        $("sumBackhand").textContent = backhands[state.backhand].name;
+        $("sumFinish").textContent = state.thickness.toUpperCase() + " mm · " + grips[state.grip].name;
+        $("previewBlade").textContent = blades[state.blade].name;
+        $("previewGrip").textContent = grips[state.grip].name + " grip";
+        $("totalPrice").textContent = money(getTotal());
+        $("addBuild").setAttribute("aria-label", "Add custom racket to cart for " + money(getTotal()));
+        updateModelMaterials();
+      }
+
+      document.querySelectorAll("[data-kind]").forEach(button => {
+        button.addEventListener("click", () => {
+          const kind = button.dataset.kind;
+          state[kind] = button.dataset.id;
+          document.querySelectorAll('[data-kind="' + kind + '"]').forEach(option => option.classList.toggle("selected", option === button));
+          refreshSummary();
+        });
+      });
+      document.querySelectorAll("[data-thickness]").forEach(button => button.addEventListener("click", () => {
+        state.thickness = button.dataset.thickness;
+        document.querySelectorAll("[data-thickness]").forEach(option => option.classList.toggle("selected", option === button));
+        refreshSummary();
+      }));
+      document.querySelectorAll("[data-grip]").forEach(button => button.addEventListener("click", () => {
+        state.grip = button.dataset.grip;
+        document.querySelectorAll("[data-grip]").forEach(option => option.classList.toggle("selected", option === button));
+        refreshSummary();
+      }));
+      document.querySelectorAll("[data-view]").forEach(button => button.addEventListener("click", () => {
+        state.view = button.dataset.view;
+        document.querySelectorAll("[data-view]").forEach(option => option.classList.toggle("active", option === button));
+        if (model) { autoRotate = false; $("autoRotate").textContent = "▶"; model.rotation.y = state.view === "back" ? Math.PI : 0; model.rotation.x = -0.08; }
+      }));
+      $("addBuild").addEventListener("click", () => {
+        if (!window.SpinCraftCart) { window.alert("The cart could not be loaded. Please refresh the page."); return; }
+        const details = blades[state.blade].name + " · FH: " + forehands[state.forehand].name + " · BH: " + backhands[state.backhand].name + " · " + state.thickness.toUpperCase() + " mm · " + grips[state.grip].name + " grip";
+        window.SpinCraftCart.add({ id: "custom-" + Date.now(), name: "Custom racket · " + blades[state.blade].name, price: getTotal(), details: details });
+      });
+
+      let renderer, scene, camera, model, frontMaterial, backMaterial, bladeMaterial, handleMaterial;
+      let dragging = false, previousX = 0, previousY = 0, autoRotate = true;
+      const canvas = $("racket-canvas");
+      const stage = $("stage");
+      const fallback = $("stageFallback");
+
+      function makeTexture(baseColor, accentColor, dark) {
+        const canvasTexture = document.createElement("canvas");
+        canvasTexture.width = 256; canvasTexture.height = 256;
+        const ctx = canvasTexture.getContext("2d");
+        ctx.fillStyle = "#" + baseColor.toString(16).padStart(6, "0"); ctx.fillRect(0, 0, 256, 256);
+        const shade = dark ? "rgba(255,255,255,.075)" : "rgba(70,15,12,.10)";
+        ctx.strokeStyle = shade; ctx.lineWidth = 2;
+        for (let y = 0; y < 256; y += 13) {
+          for (let x = 0; x < 256; x += 13) {
+            ctx.beginPath(); ctx.arc(x + ((y / 13) % 2) * 6, y, 1.7, 0, Math.PI * 2); ctx.fillStyle = shade; ctx.fill();
+          }
+        }
+        ctx.strokeStyle = accentColor; ctx.globalAlpha = 0.17; ctx.lineWidth = 1;
+        for (let i = -256; i < 512; i += 25) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i + 256, 256); ctx.stroke(); }
+        ctx.globalAlpha = 1;
+        const texture = new THREE.CanvasTexture(canvasTexture);
+        texture.wrapS = THREE.RepeatWrapping; texture.wrapT = THREE.RepeatWrapping; texture.encoding = THREE.sRGBEncoding;
+        texture.repeat.set(2.2, 2.2); texture.anisotropy = 4;
+        return texture;
+      }
+
+      function makePaddleShape() {
+        const shape = new THREE.Shape();
+        shape.moveTo(-0.28, -0.69);
+        shape.bezierCurveTo(-0.40, -0.36, -0.88, 0.12, -0.88, 0.83);
+        shape.bezierCurveTo(-0.88, 1.48, -0.48, 1.94, 0, 1.94);
+        shape.bezierCurveTo(0.48, 1.94, 0.88, 1.48, 0.88, 0.83);
+        shape.bezierCurveTo(0.88, 0.12, 0.40, -0.36, 0.28, -0.69);
+        shape.closePath();
+        return shape;
+      }
+
+      function makeGripShape(width) {
+        const shape = new THREE.Shape();
+        shape.moveTo(-0.23 * width, -0.58);
+        shape.lineTo(0.23 * width, -0.58);
+        if (state.grip === "anatomic") {
+          shape.bezierCurveTo(0.19 * width, -0.98, 0.30 * width, -1.16, 0.24 * width, -1.49);
+          shape.bezierCurveTo(0.19 * width, -1.83, 0.22 * width, -2.11, 0.16 * width, -2.24);
+          shape.lineTo(-0.16 * width, -2.24);
+          shape.bezierCurveTo(-0.22 * width, -2.11, -0.19 * width, -1.83, -0.24 * width, -1.49);
+          shape.bezierCurveTo(-0.30 * width, -1.16, -0.19 * width, -0.98, -0.23 * width, -0.58);
+        } else {
+          const bottom = state.grip === "straight" ? 0.21 : 0.29;
+          shape.lineTo(0.20 * width, -2.20);
+          shape.quadraticCurveTo(0, -2.28, -0.20 * width, -2.20);
+          shape.lineTo(-bottom * width, -0.72);
+          shape.closePath();
+        }
+        return shape;
+      }
+
+      function addModel() {
+        if (!renderer) return;
+        if (model) {
+          scene.remove(model);
+          model.traverse(object => {
+            if (object.geometry) object.geometry.dispose();
+            if (object.material) {
+              const materials = Array.isArray(object.material) ? object.material : [object.material];
+              materials.forEach(material => { if (material.map) material.map.dispose(); material.dispose(); });
+            }
+          });
+        }
+        model = new THREE.Group();
+        const paddleShape = makePaddleShape();
+        const blade = blades[state.blade];
+        const baseGeometry = new THREE.ExtrudeGeometry(paddleShape, { depth: 0.13, bevelEnabled: true, bevelSegments: 3, steps: 1, bevelSize: 0.028, bevelThickness: 0.025, curveSegments: 24 });
+        baseGeometry.translate(0, 0, -0.065);
+        const woodTexture = makeTexture(blade.color, "#f8c9ad", false);
+        bladeMaterial = new THREE.MeshStandardMaterial({ map: woodTexture, roughness: 0.7, metalness: state.blade === "carbon" ? 0.12 : 0.02 });
+        const bladeMesh = new THREE.Mesh(baseGeometry, bladeMaterial);
+        bladeMesh.castShadow = true; bladeMesh.receiveShadow = true; model.add(bladeMesh);
+
+        const rimGeometry = new THREE.ExtrudeGeometry(paddleShape, { depth: 0.025, bevelEnabled: false, curveSegments: 24 });
+        rimGeometry.translate(0, 0, -0.0125);
+        const rim = new THREE.Mesh(rimGeometry, new THREE.MeshStandardMaterial({ color: 0x6c3829, roughness: 0.8 }));
+        rim.scale.set(1.006, 1.006, 1); rim.position.z = 0; model.add(rim);
+        const faceGeometry = new THREE.ExtrudeGeometry(paddleShape, { depth: 0.025, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: 0.012, bevelThickness: 0.008, curveSegments: 24 });
+        faceGeometry.translate(0, 0, 0.066);
+        const front = forehands[state.forehand];
+        const frontTexture = makeTexture(front.color, "#ffffff", false);
+        frontMaterial = new THREE.MeshStandardMaterial({ map: frontTexture, color: 0xffffff, roughness: front.roughness, metalness: 0.01, side: THREE.DoubleSide });
+        const frontMesh = new THREE.Mesh(faceGeometry, frontMaterial); frontMesh.castShadow = true; model.add(frontMesh);
+
+        const backGeometry = faceGeometry.clone();
+        backGeometry.rotateY(Math.PI);
+        const back = backhands[state.backhand];
+        const backTexture = makeTexture(back.color, "#ffffff", true);
+        backMaterial = new THREE.MeshStandardMaterial({ map: backTexture, color: 0xffffff, roughness: back.roughness, metalness: 0.01, side: THREE.DoubleSide });
+        const backMesh = new THREE.Mesh(backGeometry, backMaterial); backMesh.castShadow = true; model.add(backMesh);
+
+        const gripGeometry = new THREE.ExtrudeGeometry(makeGripShape(grips[state.grip].width), { depth: 0.13, bevelEnabled: true, bevelSegments: 4, steps: 1, bevelSize: 0.035, bevelThickness: 0.025, curveSegments: 12 });
+        gripGeometry.translate(0, 0, -0.065);
+        const gripTexture = makeTexture(0x9c6848, "#f0bd8f", false);
+        handleMaterial = new THREE.MeshStandardMaterial({ map: gripTexture, roughness: 0.75 });
+        const grip = new THREE.Mesh(gripGeometry, handleMaterial); grip.castShadow = true; grip.receiveShadow = true; model.add(grip);
+
+        const gripLines = new THREE.Group();
+        for (let i = 0; i < 7; i++) {
+          const line = new THREE.Mesh(new THREE.BoxGeometry(0.34 * grips[state.grip].width, 0.012, 0.003), new THREE.MeshStandardMaterial({ color: i % 2 ? 0x70452f : 0xc78e65, roughness: 0.8 }));
+          line.position.set(0, -0.88 - i * 0.17, 0.067);
+          gripLines.add(line);
+        }
+        model.add(gripLines);
+
+        const badgeTextureCanvas = document.createElement("canvas");
+        badgeTextureCanvas.width = 128; badgeTextureCanvas.height = 128;
+        const badgeCtx = badgeTextureCanvas.getContext("2d");
+        badgeCtx.fillStyle = "#f6e9dd"; badgeCtx.beginPath(); badgeCtx.arc(64,64,57,0,Math.PI*2); badgeCtx.fill();
+        badgeCtx.fillStyle = "#9b4030"; badgeCtx.font = "900 31px Arial"; badgeCtx.textAlign = "center"; badgeCtx.textBaseline = "middle"; badgeCtx.fillText("SC",64,66);
+        const badgeTexture = new THREE.CanvasTexture(badgeTextureCanvas);
+        const badgeMat = new THREE.MeshBasicMaterial({ map: badgeTexture, transparent: true, side: THREE.DoubleSide });
+        const badge = new THREE.Mesh(new THREE.CircleGeometry(0.105, 32), badgeMat);
+        badge.position.set(0, 0.54, 0.105); model.add(badge);
+        const badgeBack = badge.clone(); badgeBack.position.z = -0.105; badgeBack.rotation.y = Math.PI; model.add(badgeBack);
+
+        model.rotation.order = "YXZ";
+        model.rotation.y = state.view === "back" ? Math.PI : 0;
+        model.rotation.x = -0.08;
+        model.castShadow = true;
+        scene.add(model);
+      }
+
+      function updateModelMaterials() {
+        if (!renderer) return;
+        addModel();
+      }
+
+      function resize() {
+        if (!renderer || !camera) return;
+        const width = Math.max(1, stage.clientWidth);
+        const height = Math.max(1, stage.clientHeight);
+        renderer.setSize(width, height, false);
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+      }
+
+      function init3D() {
+        if (!window.THREE || !canvas) throw new Error("Three.js is not available");
+        renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        renderer.setSize(stage.clientWidth, stage.clientHeight, false);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        renderer.setClearColor(0xf4e4dc, 0);
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(36, stage.clientWidth / stage.clientHeight, 0.1, 100);
+        camera.position.set(0, -0.03, 6.7);
+        scene.add(new THREE.HemisphereLight(0xffffff, 0x9d7662, 1.55));
+        const keyLight = new THREE.DirectionalLight(0xffffff, 2.0);
+        keyLight.position.set(-3.5, 4.5, 6); keyLight.castShadow = true; keyLight.shadow.mapSize.set(1024, 1024); scene.add(keyLight);
+        const fillLight = new THREE.DirectionalLight(0xffc8aa, 1.0); fillLight.position.set(4, 0, 4); scene.add(fillLight);
+        const backLight = new THREE.DirectionalLight(0xffffff, 1.0); backLight.position.set(0, 3, -4); scene.add(backLight);
+        const floor = new THREE.Mesh(new THREE.CircleGeometry(2.15, 64), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.21 }));
+        floor.rotation.x = -Math.PI / 2; floor.position.set(0, -1.1, -0.65); scene.add(floor);
+        addModel();
+        const clock = new THREE.Clock();
+        function animate() {
+          requestAnimationFrame(animate);
+          const t = clock.getElapsedTime();
+          if (model && !dragging && autoRotate) model.rotation.y += 0.0022;
+          if (model && !dragging) model.rotation.x += (-0.08 - model.rotation.x) * 0.018;
+          renderer.render(scene, camera);
+        }
+        animate();
+        if (window.ResizeObserver) new ResizeObserver(resize).observe(stage);
+        else window.addEventListener("resize", resize);
+      }
+
+      canvas.addEventListener("pointerdown", (event) => {
+        if (!model) return;
+        dragging = true; previousX = event.clientX; previousY = event.clientY;
+        canvas.setPointerCapture(event.pointerId);
+        autoRotate = false; $("autoRotate").textContent = "▶";
+      });
+      canvas.addEventListener("pointermove", (event) => {
+        if (!dragging || !model) return;
+        const dx = event.clientX - previousX;
+        const dy = event.clientY - previousY;
+        previousX = event.clientX; previousY = event.clientY;
+        model.rotation.y += dx * 0.009;
+        model.rotation.x = Math.max(-0.62, Math.min(0.62, model.rotation.x + dy * 0.006));
+      });
+      const endDrag = () => { dragging = false; };
+      canvas.addEventListener("pointerup", endDrag);
+      canvas.addEventListener("pointercancel", endDrag);
+      canvas.addEventListener("wheel", (event) => {
+        event.preventDefault();
+        if (!camera) return;
+        camera.position.z = Math.max(4.6, Math.min(9, camera.position.z + event.deltaY * 0.004));
+      }, { passive: false });
+      $("resetView").addEventListener("click", () => {
+        if (!model) return;
+        model.rotation.set(-0.08, state.view === "back" ? Math.PI : 0, 0);
+        if (camera) camera.position.set(0, -0.03, 6.7);
+      });
+      $("autoRotate").addEventListener("click", () => {
+        autoRotate = !autoRotate;
+        $("autoRotate").textContent = autoRotate ? "Ⅱ" : "▶";
+      });
+
+      try { init3D(); }
+      catch (error) {
+        canvas.style.display = "none";
+        fallback.style.display = "flex";
+        console.warn("3D preview unavailable:", error);
+      }
+      refreshSummary();
+    })();
+  </script>
+</body>
+</html>
