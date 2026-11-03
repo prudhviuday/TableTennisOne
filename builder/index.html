@@ -116,6 +116,7 @@
   <footer><span>© 2026 SpinCraft · Custom racket preview</span><span><a href="/">Home</a> · <a href="/shop/">Shop equipment</a></span><span>Prices shown in INR</span></footer>
   <script src="/assets/store.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
   <script>
     (function () {
       const blades = {
@@ -153,7 +154,7 @@
         $("previewGrip").textContent = grips[state.grip].name + " grip";
         $("totalPrice").textContent = money(getTotal());
         $("addBuild").setAttribute("aria-label", "Add custom racket to cart for " + money(getTotal()));
-        if (renderer && scene) addModel();
+        updateModelMaterials();
       }
 
       document.querySelectorAll("[data-kind]").forEach(button => {
@@ -315,6 +316,235 @@
         scene.add(model);
       }
 
+      function updateModelMaterials() {
+        if (!renderer || !model) return;
+        const forehand = forehands[state.forehand];
+        const backhand = backhands[state.backhand];
+        model.traverse(object => {
+          const slots = object.userData && object.userData.spinCraftRubberMaterials;
+          if (!slots) return;
+          if (slots.forehand) {
+            slots.forehand.color.setHex(forehand.color);
+            slots.forehand.roughness = forehand.roughness;
+            slots.forehand.needsUpdate = true;
+          }
+          if (slots.backhand) {
+            slots.backhand.color.setHex(backhand.color);
+            slots.backhand.roughness = backhand.roughness;
+            slots.backhand.needsUpdate = true;
+          }
+        });
+      }
+
+      function identifyMaterialRole(object, material) {
+        const label = ((object && object.name) || "") + " " + ((material && material.name) || "");
+        const name = label.toLowerCase().replace(/[_-]+/g, " ");
+        if (/back ?hand|back ?side|back rubber|bh rubber|black rubber|rubber black/.test(name)) return "backhand";
+        if (/fore ?hand|front ?side|front rubber|fh rubber|red rubber|rubber red/.test(name)) return "forehand";
+        return null;
+      }
+
+      function fitImportedPaddle(root) {
+        const assetRoot = new THREE.Group();
+        assetRoot.add(root);
+
+        // Keep the GLB's silhouette and orient its longest axis vertically.
+        let bounds = new THREE.Box3().setFromObject(assetRoot);
+        let size = bounds.getSize(new THREE.Vector3());
+        if (size.x > size.y * 1.15 && size.x >= size.z) {
+          assetRoot.rotation.z = Math.PI / 2;
+        } else if (size.z > size.y * 1.15 && size.z > size.x) {
+          assetRoot.rotation.x = -Math.PI / 2;
+        }
+
+        assetRoot.updateMatrixWorld(true);
+        bounds = new THREE.Box3().setFromObject(assetRoot);
+        size = bounds.getSize(new THREE.Vector3());
+        const center = bounds.getCenter(new THREE.Vector3());
+        const longest = Math.max(size.x, size.y, size.z) || 1;
+        const scale = 3.55 / longest;
+        assetRoot.scale.setScalar(scale);
+        assetRoot.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
+        assetRoot.updateMatrixWorld(true);
+
+        // Paddle2.glb remains the displayed model. For each imported mesh,
+        // split its existing triangle groups into front-facing and back-facing
+        // racket-head triangles. This works even when the GLB has generic names
+        // or combines the rubber/blade into one mesh.
+        const wholeBounds = new THREE.Box3().setFromObject(assetRoot);
+        const wholeSize = wholeBounds.getSize(new THREE.Vector3());
+        const headBottom = wholeBounds.min.y + wholeSize.y * 0.30;
+        const detected = { forehand: 0, backhand: 0 };
+
+        assetRoot.traverse(object => {
+          if (!object.isMesh || !object.geometry) return;
+          object.castShadow = true;
+          object.receiveShadow = true;
+
+          const sourceGeometry = object.geometry;
+          const position = sourceGeometry.getAttribute("position");
+          if (!position || position.count < 3) return;
+
+          const meshBounds = new THREE.Box3().setFromObject(object);
+          const meshSize = meshBounds.getSize(new THREE.Vector3());
+          const isRacketHeadSized =
+            meshSize.x >= wholeSize.x * 0.32 &&
+            meshSize.y >= wholeSize.y * 0.22;
+
+          const oldMaterials = Array.isArray(object.material) ? object.material : [object.material];
+          const materials = oldMaterials.map(material => material && material.clone ? material.clone() : material);
+          const sourceGroups = sourceGeometry.groups.length
+            ? sourceGeometry.groups.map(group => ({ start: group.start, count: group.count, materialIndex: group.materialIndex }))
+            : [{ start: 0, count: sourceGeometry.index ? sourceGeometry.index.count : position.count, materialIndex: 0 }];
+
+          const foreMaterialIndex = materials.length;
+          const backMaterialIndex = materials.length + 1;
+          const whiteRubberMap = makeTexture(0xffffff, "#ffffff", true);
+          const foreRubber = new THREE.MeshStandardMaterial({
+            map: whiteRubberMap,
+            color: forehands[state.forehand].color,
+            roughness: forehands[state.forehand].roughness,
+            metalness: 0.01,
+            side: THREE.DoubleSide
+          });
+          const backRubber = new THREE.MeshStandardMaterial({
+            map: whiteRubberMap.clone(),
+            color: backhands[state.backhand].color,
+            roughness: backhands[state.backhand].roughness,
+            metalness: 0.01,
+            side: THREE.DoubleSide
+          });
+
+          const normalMatrix = new THREE.Matrix3().getNormalMatrix(object.matrixWorld);
+          const rebuiltGroups = [];
+          const localA = new THREE.Vector3();
+          const localB = new THREE.Vector3();
+          const localC = new THREE.Vector3();
+          const edgeAB = new THREE.Vector3();
+          const edgeAC = new THREE.Vector3();
+          const triangleNormal = new THREE.Vector3();
+          const triangleCenter = new THREE.Vector3();
+          let usedForehand = 0;
+          let usedBackhand = 0;
+
+          sourceGroups.forEach(sourceGroup => {
+            const start = sourceGroup.start;
+            const end = start + sourceGroup.count;
+            let runStart = start;
+            let runMaterial = sourceGroup.materialIndex || 0;
+
+            for (let offset = start; offset + 2 < end; offset += 3) {
+              let materialIndex = sourceGroup.materialIndex || 0;
+              if (isRacketHeadSized) {
+                const index = sourceGeometry.index;
+                const ia = index ? index.getX(offset) : offset;
+                const ib = index ? index.getX(offset + 1) : offset + 1;
+                const ic = index ? index.getX(offset + 2) : offset + 2;
+                localA.fromBufferAttribute(position, ia);
+                localB.fromBufferAttribute(position, ib);
+                localC.fromBufferAttribute(position, ic);
+
+                edgeAB.subVectors(localB, localA);
+                edgeAC.subVectors(localC, localA);
+                triangleNormal.crossVectors(edgeAB, edgeAC).normalize().applyMatrix3(normalMatrix).normalize();
+                triangleCenter.copy(localA).add(localB).add(localC).multiplyScalar(1 / 3).applyMatrix4(object.matrixWorld);
+
+                if (triangleCenter.y >= headBottom && Math.abs(triangleNormal.z) >= 0.70) {
+                  if (triangleNormal.z > 0) {
+                    materialIndex = foreMaterialIndex;
+                    usedForehand++;
+                  } else {
+                    materialIndex = backMaterialIndex;
+                    usedBackhand++;
+                  }
+                }
+              }
+
+              if (materialIndex !== runMaterial) {
+                if (offset > runStart) rebuiltGroups.push({ start: runStart, count: offset - runStart, materialIndex: runMaterial });
+                runStart = offset;
+                runMaterial = materialIndex;
+              }
+            }
+            if (end > runStart) rebuiltGroups.push({ start: runStart, count: end - runStart, materialIndex: runMaterial });
+          });
+
+          // Named materials are a second path for assets whose rubber sides
+          // are already separate GLB primitives.
+          if (usedForehand === 0 || usedBackhand === 0) {
+            sourceGroups.forEach(group => {
+              const original = oldMaterials[group.materialIndex || 0];
+              const role = identifyMaterialRole(object, original);
+              if (role === "forehand" || role === "backhand") {
+                const targetIndex = role === "forehand" ? foreMaterialIndex : backMaterialIndex;
+                const existing = rebuiltGroups.findIndex(item => item.start === group.start && item.count === group.count);
+                if (existing >= 0) rebuiltGroups[existing].materialIndex = targetIndex;
+                else rebuiltGroups.push({ start: group.start, count: group.count, materialIndex: targetIndex });
+                if (role === "forehand") usedForehand += group.count / 3;
+                else usedBackhand += group.count / 3;
+              }
+            });
+          }
+
+          if (usedForehand || usedBackhand) {
+            const clonedGeometry = sourceGeometry.clone();
+            clonedGeometry.clearGroups();
+            rebuiltGroups.forEach(group => clonedGeometry.addGroup(group.start, group.count, group.materialIndex));
+            object.geometry = clonedGeometry;
+            materials.push(foreRubber, backRubber);
+            object.material = materials;
+            object.userData.spinCraftRubberMaterials = { forehand: foreRubber, backhand: backRubber };
+            detected.forehand += usedForehand;
+            detected.backhand += usedBackhand;
+          } else {
+            // No broad face was detected on this mesh; preserve its GLB look.
+            object.material = Array.isArray(object.material) ? materials : materials[0];
+            foreRubber.map.dispose();
+            backRubber.map.dispose();
+            foreRubber.dispose();
+            backRubber.dispose();
+          }
+        });
+
+        console.info("[SpinCraft] Paddle2.glb rubber face triangles detected:", detected);
+        return assetRoot;
+      }
+
+      function loadPaddleModel() {
+        if (!window.THREE || !THREE.GLTFLoader) {
+          throw new Error("Three.js GLTFLoader is unavailable");
+        }
+        fallback.style.display = "flex";
+        fallback.innerHTML = "<strong>Loading your paddle…</strong><span>Preparing the SpinCraft 3D model.</span>";
+        const loader = new THREE.GLTFLoader();
+        loader.load(
+          "/assets/model/Paddle2.glb",
+          gltf => {
+            model = new THREE.Group();
+            model.add(fitImportedPaddle(gltf.scene));
+            model.rotation.order = "YXZ";
+            model.rotation.y = state.view === "back" ? Math.PI : 0;
+            model.rotation.x = -0.08;
+            scene.add(model);
+            fallback.style.display = "none";
+            updateModelMaterials();
+            const roles = [];
+            model.traverse(object => {
+              if (object.userData && object.userData.spinCraftMaterialSlots) {
+                roles.push({ mesh: object.name || "unnamed mesh", materials: object.userData.spinCraftMaterialSlots });
+              }
+            });
+            console.info("[SpinCraft] Loaded Paddle2.glb. Semantic rubber slots:", roles);
+          },
+          undefined,
+          error => {
+            console.error("[SpinCraft] Could not load /assets/model/Paddle2.glb", error);
+            fallback.innerHTML = "<strong>3D paddle couldn't load</strong><span>Check that assets/model/Paddle2.glb is deployed with the website. The configurator and pricing are still available.</span>";
+            fallback.style.display = "flex";
+          }
+        );
+      }
+
       function resize() {
         if (!renderer || !camera) return;
         const width = Math.max(1, stage.clientWidth);
@@ -343,7 +573,7 @@
         const backLight = new THREE.DirectionalLight(0xffffff, 1.0); backLight.position.set(0, 3, -4); scene.add(backLight);
         const floor = new THREE.Mesh(new THREE.CircleGeometry(2.15, 64), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.21 }));
         floor.rotation.x = -Math.PI / 2; floor.position.set(0, -1.1, -0.65); scene.add(floor);
-        addModel();
+        loadPaddleModel();
         const clock = new THREE.Clock();
         function animate() {
           requestAnimationFrame(animate);
