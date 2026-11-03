@@ -116,7 +116,6 @@
   <footer><span>© 2026 SpinCraft · Custom racket preview</span><span><a href="/">Home</a> · <a href="/shop/">Shop equipment</a></span><span>Prices shown in INR</span></footer>
   <script src="/assets/store.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
   <script>
     (function () {
       const blades = {
@@ -154,7 +153,7 @@
         $("previewGrip").textContent = grips[state.grip].name + " grip";
         $("totalPrice").textContent = money(getTotal());
         $("addBuild").setAttribute("aria-label", "Add custom racket to cart for " + money(getTotal()));
-        updateModelMaterials();
+        if (renderer && scene) addModel();
       }
 
       document.querySelectorAll("[data-kind]").forEach(button => {
@@ -316,110 +315,6 @@
         scene.add(model);
       }
 
-      function updateModelMaterials() {
-        if (!renderer || !model) return;
-        const forehand = forehands[state.forehand];
-        const backhand = backhands[state.backhand];
-        model.traverse(object => {
-          const slots = object.userData && object.userData.spinCraftMaterialSlots;
-          if (!slots || !object.material) return;
-          const materials = Array.isArray(object.material) ? object.material : [object.material];
-          materials.forEach((material, index) => {
-            const role = slots[index];
-            if (!role || !material || !material.color) return;
-            if (role === "forehand") {
-              material.color.setHex(forehand.color);
-              material.roughness = forehand.roughness;
-              material.needsUpdate = true;
-            } else if (role === "backhand") {
-              material.color.setHex(backhand.color);
-              material.roughness = backhand.roughness;
-              material.needsUpdate = true;
-            }
-          });
-        });
-      }
-
-      function identifyMaterialRole(object, material) {
-        const label = ((object && object.name) || "") + " " + ((material && material.name) || "");
-        const name = label.toLowerCase().replace(/[_-]+/g, " ");
-        if (/back ?hand|back ?side|back rubber|bh rubber|black rubber|rubber black/.test(name)) return "backhand";
-        if (/fore ?hand|front ?side|front rubber|fh rubber|red rubber|rubber red/.test(name)) return "forehand";
-        return null;
-      }
-
-      function fitImportedPaddle(root) {
-        const assetRoot = new THREE.Group();
-        assetRoot.add(root);
-
-        // Most glTF assets are Y-up. Rotate only when the longest dimension
-        // clearly indicates the model was exported on another axis.
-        let bounds = new THREE.Box3().setFromObject(assetRoot);
-        let size = bounds.getSize(new THREE.Vector3());
-        if (size.x > size.y * 1.15 && size.x >= size.z) {
-          assetRoot.rotation.z = Math.PI / 2;
-        } else if (size.z > size.y * 1.15 && size.z > size.x) {
-          assetRoot.rotation.x = -Math.PI / 2;
-        }
-
-        assetRoot.updateMatrixWorld(true);
-        bounds = new THREE.Box3().setFromObject(assetRoot);
-        size = bounds.getSize(new THREE.Vector3());
-        const center = bounds.getCenter(new THREE.Vector3());
-        const longest = Math.max(size.x, size.y, size.z) || 1;
-        const scale = 3.55 / longest;
-        assetRoot.scale.setScalar(scale);
-        assetRoot.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
-
-        // Keep the imported material appearance, but remember semantic
-        // material slots so named front/back rubber meshes can be recoloured.
-        assetRoot.traverse(object => {
-          if (!object.isMesh) return;
-          object.castShadow = true;
-          object.receiveShadow = true;
-          const originals = Array.isArray(object.material) ? object.material : [object.material];
-          const clones = originals.map(material => material && material.clone ? material.clone() : material);
-          object.userData.spinCraftMaterialSlots = originals.map(material => identifyMaterialRole(object, material));
-          object.material = Array.isArray(object.material) ? clones : clones[0];
-        });
-        return assetRoot;
-      }
-
-      function loadPaddleModel() {
-        if (!window.THREE || !THREE.GLTFLoader) {
-          throw new Error("Three.js GLTFLoader is unavailable");
-        }
-        fallback.style.display = "flex";
-        fallback.innerHTML = "<strong>Loading your paddle…</strong><span>Preparing the SpinCraft 3D model.</span>";
-        const loader = new THREE.GLTFLoader();
-        loader.load(
-          "/assets/model/Paddle2.glb",
-          gltf => {
-            model = new THREE.Group();
-            model.add(fitImportedPaddle(gltf.scene));
-            model.rotation.order = "YXZ";
-            model.rotation.y = state.view === "back" ? Math.PI : 0;
-            model.rotation.x = -0.08;
-            scene.add(model);
-            fallback.style.display = "none";
-            updateModelMaterials();
-            const roles = [];
-            model.traverse(object => {
-              if (object.userData && object.userData.spinCraftMaterialSlots) {
-                roles.push({ mesh: object.name || "unnamed mesh", materials: object.userData.spinCraftMaterialSlots });
-              }
-            });
-            console.info("[SpinCraft] Loaded Paddle2.glb. Semantic rubber slots:", roles);
-          },
-          undefined,
-          error => {
-            console.error("[SpinCraft] Could not load /assets/model/Paddle2.glb", error);
-            fallback.innerHTML = "<strong>3D paddle couldn't load</strong><span>Check that assets/model/Paddle2.glb is deployed with the website. The configurator and pricing are still available.</span>";
-            fallback.style.display = "flex";
-          }
-        );
-      }
-
       function resize() {
         if (!renderer || !camera) return;
         const width = Math.max(1, stage.clientWidth);
@@ -448,7 +343,7 @@
         const backLight = new THREE.DirectionalLight(0xffffff, 1.0); backLight.position.set(0, 3, -4); scene.add(backLight);
         const floor = new THREE.Mesh(new THREE.CircleGeometry(2.15, 64), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.21 }));
         floor.rotation.x = -Math.PI / 2; floor.position.set(0, -1.1, -0.65); scene.add(floor);
-        loadPaddleModel();
+        addModel();
         const clock = new THREE.Clock();
         function animate() {
           requestAnimationFrame(animate);
