@@ -1,1 +1,33 @@
-<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Log in · SpinCraft</title><style>:root{--o:#f47b51;--od:#b9412d;--c:#fff8f3;--i:#262321;--m:#756b67;--l:#eaded8}*{box-sizing:border-box}body{margin:0;background:linear-gradient(120deg,#fff8f3,#f7c2aa);color:var(--i);font-family:Inter,system-ui,sans-serif;min-height:100vh;display:grid;place-items:center}.card{width:min(420px,calc(100% - 30px));background:#fff;border:1px solid var(--l);border-radius:20px;padding:32px;box-shadow:0 28px 60px #793d2c1c;animation:pop .65s both}.brand{font-size:23px;font-weight:900;letter-spacing:-.06em;text-align:center}.brand i{display:inline-block;width:30px;height:30px;background:var(--o);border-radius:50%;vertical-align:middle;margin-right:9px}.brand span{color:var(--od)}.eyebrow{text-align:center;text-transform:uppercase;color:var(--od);font-weight:900;letter-spacing:.16em;font-size:11px;margin-top:34px}h1{text-align:center;font-size:33px;letter-spacing:-.07em;margin:10px 0}.muted{text-align:center;font-size:13px;color:var(--m);line-height:1.5}.field{margin-top:18px}.field label{display:block;font-size:12px;font-weight:800;margin-bottom:7px}.field input{width:100%;border:1px solid var(--l);border-radius:8px;padding:13px}.btn{width:100%;border:0;background:var(--o);color:#fff;padding:13px;border-radius:8px;font-weight:800;margin-top:22px;cursor:pointer}.back{text-align:center;display:block;margin-top:22px;color:var(--od);font-size:13px;font-weight:800;text-decoration:none}@keyframes pop{from{opacity:0;transform:translateY(18px) scale(.98)}to{opacity:1;transform:none}}</style></head><body><main class="card"><a href="/" class="brand"><i></i>spin<span>craft</span></a><div class="eyebrow">Welcome back</div><h1>Log in to your game.</h1><p class="muted">Save your custom builds and keep every match-day essential close.</p><div class="field"><label for="email">Email address</label><input id="email" type="email" placeholder="you@example.com"></div><div class="field"><label for="password">Password</label><input id="password" type="password" placeholder="••••••••"></div><button class="btn" id="submit">Continue</button><a class="back" href="/">← Back to SpinCraft</a></main><script>document.querySelector('#submit').onclick=()=>{document.querySelector('#submit').textContent='You’re in';document.querySelector('#submit').style.background='#386c55'}</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fff8f3">
+  <title>Account · SpinCraft</title>
+  <style>
+    :root{--orange:#e96745;--orange-dark:#b9422c;--cream:#fff8f3;--ink:#272321;--muted:#786e69;--line:#eaded8}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 12% 12%,#f9d8c9 0,transparent 35%),linear-gradient(140deg,#fff8f3,#f4e1d8);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;display:grid;place-items:center;padding:22px}
+    .card{width:min(440px,100%);border:1px solid #eaded8;background:#fffdfbf2;border-radius:20px;padding:34px;box-shadow:0 25px 70px #5b2d1c17;text-align:center}
+    .brand{display:inline-flex;align-items:center;gap:9px;font-size:24px;font-weight:950;letter-spacing:-.075em;text-decoration:none;color:var(--ink)}.mark{width:30px;height:30px;border-radius:50%;background:var(--orange);position:relative;overflow:hidden}.mark:after{content:"";position:absolute;width:4px;height:42px;left:14px;top:-7px;background:#fff;transform:rotate(34deg)}.brand span span{color:var(--orange-dark)}
+    .icon{width:62px;height:62px;border-radius:18px;background:#fff0e9;color:var(--orange-dark);display:grid;place-items:center;font-size:28px;margin:34px auto 20px}
+    .eyebrow{font-size:10px;font-weight:950;letter-spacing:.18em;text-transform:uppercase;color:var(--orange-dark)}h1{font-size:34px;letter-spacing:-.075em;line-height:1.02;margin:10px 0 12px}.copy{color:var(--muted);font-size:13px;line-height:1.7;margin:0 auto;max-width:320px}
+    .status{display:flex;align-items:flex-start;gap:10px;text-align:left;background:#f8f2ee;border:1px solid var(--line);border-radius:10px;padding:13px;margin:25px 0 18px}.status i{width:8px;height:8px;border-radius:50%;background:#d08b43;flex:none;margin-top:4px}.status b{font-size:11px;display:block}.status span{font-size:10px;line-height:1.5;color:var(--muted);display:block;margin-top:3px}
+    .btn{display:flex;align-items:center;justify-content:center;width:100%;padding:13px 17px;background:var(--orange);color:white;border-radius:8px;text-decoration:none;font-size:12px;font-weight:900}.btn:hover{background:var(--orange-dark)}.back{display:inline-block;color:var(--orange-dark);font-size:11px;font-weight:850;text-decoration:none;margin-top:19px}
+    .fine{font-size:9px;line-height:1.5;color:#9a8b84;margin:22px 0 0}
+  </style>
+</head>
+<body>
+  <main class="card">
+    <a href="/" class="brand"><i class="mark"></i><span>spin<span>craft</span></span></a>
+    <div class="icon" aria-hidden="true">♧</div>
+    <div class="eyebrow">Your SpinCraft account</div>
+    <h1>Your game,<br>all in one place.</h1>
+    <p class="copy">We're shaping the account experience so you can save custom racket builds, manage orders and keep your equipment preferences together.</p>
+    <div class="status"><i></i><div><b>Account sign-in is not connected yet</b><span>This preview does not create accounts or authenticate passwords. Your cart is saved locally in this browser.</span></div></div>
+    <a class="btn" href="/builder/">Build a custom racket →</a>
+    <a class="back" href="/">← Back to SpinCraft</a>
+    <p class="fine">Authentication, customer accounts and order history need a secure backend before launch.</p>
+  </main>
+</body>
+</html>
