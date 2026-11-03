@@ -431,11 +431,19 @@
             const start = sourceGroup.start;
             const end = start + sourceGroup.count;
             let runStart = start;
-            let runMaterial = sourceGroup.materialIndex || 0;
+            const originalMaterialIndex = sourceGroup.materialIndex || 0;
+            const namedRole = identifyMaterialRole(object, oldMaterials[originalMaterialIndex]);
+            let runMaterial = originalMaterialIndex;
 
             for (let offset = start; offset + 2 < end; offset += 3) {
-              let materialIndex = sourceGroup.materialIndex || 0;
-              if (isRacketHeadSized) {
+              let materialIndex = originalMaterialIndex;
+              if (namedRole === "forehand") {
+                materialIndex = foreMaterialIndex;
+                usedForehand++;
+              } else if (namedRole === "backhand") {
+                materialIndex = backMaterialIndex;
+                usedBackhand++;
+              } else if (isRacketHeadSized) {
                 const index = sourceGeometry.index;
                 const ia = index ? index.getX(offset) : offset;
                 const ib = index ? index.getX(offset + 1) : offset + 1;
@@ -468,23 +476,6 @@
             }
             if (end > runStart) rebuiltGroups.push({ start: runStart, count: end - runStart, materialIndex: runMaterial });
           });
-
-          // Named materials are a second path for assets whose rubber sides
-          // are already separate GLB primitives.
-          if (usedForehand === 0 || usedBackhand === 0) {
-            sourceGroups.forEach(group => {
-              const original = oldMaterials[group.materialIndex || 0];
-              const role = identifyMaterialRole(object, original);
-              if (role === "forehand" || role === "backhand") {
-                const targetIndex = role === "forehand" ? foreMaterialIndex : backMaterialIndex;
-                const existing = rebuiltGroups.findIndex(item => item.start === group.start && item.count === group.count);
-                if (existing >= 0) rebuiltGroups[existing].materialIndex = targetIndex;
-                else rebuiltGroups.push({ start: group.start, count: group.count, materialIndex: targetIndex });
-                if (role === "forehand") usedForehand += group.count / 3;
-                else usedBackhand += group.count / 3;
-              }
-            });
-          }
 
           if (usedForehand || usedBackhand) {
             const clonedGeometry = sourceGeometry.clone();
