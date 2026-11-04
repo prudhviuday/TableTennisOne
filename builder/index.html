@@ -317,38 +317,30 @@
       }
 
       function updateModelMaterials() {
-        if (!renderer || !model) return;
+        if (!model) return;
         const forehand = forehands[state.forehand];
         const backhand = backhands[state.backhand];
         model.traverse(object => {
-          const slots = object.userData && object.userData.spinCraftRubberMaterials;
-          if (!slots) return;
-          if (slots.forehand) {
-            slots.forehand.color.setHex(forehand.color);
-            slots.forehand.roughness = forehand.roughness;
-            slots.forehand.needsUpdate = true;
+          const rubberLayers = object.userData && object.userData.spinCraftRubberMaterials;
+          if (!rubberLayers) return;
+          if (rubberLayers.forehand) {
+            rubberLayers.forehand.color.setHex(forehand.color);
+            rubberLayers.forehand.roughness = forehand.roughness;
+            rubberLayers.forehand.needsUpdate = true;
           }
-          if (slots.backhand) {
-            slots.backhand.color.setHex(backhand.color);
-            slots.backhand.roughness = backhand.roughness;
-            slots.backhand.needsUpdate = true;
+          if (rubberLayers.backhand) {
+            rubberLayers.backhand.color.setHex(backhand.color);
+            rubberLayers.backhand.roughness = backhand.roughness;
+            rubberLayers.backhand.needsUpdate = true;
           }
         });
-      }
-
-      function identifyMaterialRole(object, material) {
-        const label = ((object && object.name) || "") + " " + ((material && material.name) || "");
-        const name = label.toLowerCase().replace(/[_-]+/g, " ");
-        if (/back ?hand|back ?side|back rubber|bh rubber|black rubber|rubber black/.test(name)) return "backhand";
-        if (/fore ?hand|front ?side|front rubber|fh rubber|red rubber|rubber red/.test(name)) return "forehand";
-        return null;
       }
 
       function fitImportedPaddle(root) {
         const assetRoot = new THREE.Group();
         assetRoot.add(root);
 
-        // Keep the GLB's silhouette and orient its longest axis vertically.
+        // Keep the GLB's own racket shape and orient its longest axis vertically.
         let bounds = new THREE.Box3().setFromObject(assetRoot);
         let size = bounds.getSize(new THREE.Vector3());
         if (size.x > size.y * 1.15 && size.x >= size.z) {
@@ -367,137 +359,140 @@
         assetRoot.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
         assetRoot.updateMatrixWorld(true);
 
-        // Paddle2.glb remains the displayed model. For each imported mesh,
-        // split its existing triangle groups into front-facing and back-facing
-        // racket-head triangles. This works even when the GLB has generic names
-        // or combines the rubber/blade into one mesh.
+        // Build two new, independent rubber layers from Paddle2.glb's own
+        // racket-head triangles. The GLB meshes/materials remain untouched.
         const wholeBounds = new THREE.Box3().setFromObject(assetRoot);
         const wholeSize = wholeBounds.getSize(new THREE.Vector3());
-        const headBottom = wholeBounds.min.y + wholeSize.y * 0.30;
-        const detected = { forehand: 0, backhand: 0 };
+        const headBottom = wholeBounds.min.y + wholeSize.y * 0.32;
+        const frontVertices = [];
+        const backVertices = [];
+        const counts = { forehand: 0, backhand: 0 };
+
+        const localA = new THREE.Vector3();
+        const localB = new THREE.Vector3();
+        const localC = new THREE.Vector3();
+        const edgeAB = new THREE.Vector3();
+        const edgeAC = new THREE.Vector3();
+        const faceNormal = new THREE.Vector3();
+        const faceCenter = new THREE.Vector3();
+        const worldA = new THREE.Vector3();
+        const worldB = new THREE.Vector3();
+        const worldC = new THREE.Vector3();
+        const normalMatrix = new THREE.Matrix3();
 
         assetRoot.traverse(object => {
           if (!object.isMesh || !object.geometry) return;
           object.castShadow = true;
           object.receiveShadow = true;
 
-          const sourceGeometry = object.geometry;
-          const position = sourceGeometry.getAttribute("position");
+          const geometry = object.geometry;
+          const position = geometry.getAttribute("position");
           if (!position || position.count < 3) return;
 
           const meshBounds = new THREE.Box3().setFromObject(object);
           const meshSize = meshBounds.getSize(new THREE.Vector3());
-          const isRacketHeadSized =
-            meshSize.x >= wholeSize.x * 0.32 &&
-            meshSize.y >= wholeSize.y * 0.22;
+          const canContainRacketFace =
+            meshSize.x >= wholeSize.x * 0.30 &&
+            meshSize.y >= wholeSize.y * 0.18;
+          if (!canContainRacketFace) return;
 
-          const oldMaterials = Array.isArray(object.material) ? object.material : [object.material];
-          const materials = oldMaterials.map(material => material && material.clone ? material.clone() : material);
-          const sourceGroups = sourceGeometry.groups.length
-            ? sourceGeometry.groups.map(group => ({ start: group.start, count: group.count, materialIndex: group.materialIndex }))
-            : [{ start: 0, count: sourceGeometry.index ? sourceGeometry.index.count : position.count, materialIndex: 0 }];
+          const index = geometry.index;
+          const groups = geometry.groups.length
+            ? geometry.groups
+            : [{ start: 0, count: index ? index.count : position.count }];
 
-          const foreMaterialIndex = materials.length;
-          const backMaterialIndex = materials.length + 1;
-          const whiteRubberMap = makeTexture(0xffffff, "#ffffff", true);
-          const foreRubber = new THREE.MeshStandardMaterial({
-            map: whiteRubberMap,
-            color: forehands[state.forehand].color,
-            roughness: forehands[state.forehand].roughness,
-            metalness: 0.01,
-            side: THREE.DoubleSide
-          });
-          const backRubber = new THREE.MeshStandardMaterial({
-            map: whiteRubberMap.clone(),
-            color: backhands[state.backhand].color,
-            roughness: backhands[state.backhand].roughness,
-            metalness: 0.01,
-            side: THREE.DoubleSide
-          });
+          object.updateWorldMatrix(true, false);
+          normalMatrix.getNormalMatrix(object.matrixWorld);
 
-          const normalMatrix = new THREE.Matrix3().getNormalMatrix(object.matrixWorld);
-          const rebuiltGroups = [];
-          const localA = new THREE.Vector3();
-          const localB = new THREE.Vector3();
-          const localC = new THREE.Vector3();
-          const edgeAB = new THREE.Vector3();
-          const edgeAC = new THREE.Vector3();
-          const triangleNormal = new THREE.Vector3();
-          const triangleCenter = new THREE.Vector3();
-          let usedForehand = 0;
-          let usedBackhand = 0;
+          groups.forEach(group => {
+            const limit = group.start + group.count;
+            for (let offset = group.start; offset + 2 < limit; offset += 3) {
+              const ia = index ? index.getX(offset) : offset;
+              const ib = index ? index.getX(offset + 1) : offset + 1;
+              const ic = index ? index.getX(offset + 2) : offset + 2;
 
-          sourceGroups.forEach(sourceGroup => {
-            const start = sourceGroup.start;
-            const end = start + sourceGroup.count;
-            let runStart = start;
-            const originalMaterialIndex = sourceGroup.materialIndex || 0;
-            const namedRole = identifyMaterialRole(object, oldMaterials[originalMaterialIndex]);
-            let runMaterial = originalMaterialIndex;
+              localA.fromBufferAttribute(position, ia);
+              localB.fromBufferAttribute(position, ib);
+              localC.fromBufferAttribute(position, ic);
 
-            for (let offset = start; offset + 2 < end; offset += 3) {
-              let materialIndex = originalMaterialIndex;
-              if (namedRole === "forehand") {
-                materialIndex = foreMaterialIndex;
-                usedForehand++;
-              } else if (namedRole === "backhand") {
-                materialIndex = backMaterialIndex;
-                usedBackhand++;
-              } else if (isRacketHeadSized) {
-                const index = sourceGeometry.index;
-                const ia = index ? index.getX(offset) : offset;
-                const ib = index ? index.getX(offset + 1) : offset + 1;
-                const ic = index ? index.getX(offset + 2) : offset + 2;
-                localA.fromBufferAttribute(position, ia);
-                localB.fromBufferAttribute(position, ib);
-                localC.fromBufferAttribute(position, ic);
+              edgeAB.subVectors(localB, localA);
+              edgeAC.subVectors(localC, localA);
+              faceNormal.crossVectors(edgeAB, edgeAC).normalize();
+              faceNormal.applyMatrix3(normalMatrix).normalize();
 
-                edgeAB.subVectors(localB, localA);
-                edgeAC.subVectors(localC, localA);
-                triangleNormal.crossVectors(edgeAB, edgeAC).normalize().applyMatrix3(normalMatrix).normalize();
-                triangleCenter.copy(localA).add(localB).add(localC).multiplyScalar(1 / 3).applyMatrix4(object.matrixWorld);
+              worldA.copy(localA).applyMatrix4(object.matrixWorld);
+              worldB.copy(localB).applyMatrix4(object.matrixWorld);
+              worldC.copy(localC).applyMatrix4(object.matrixWorld);
+              faceCenter.copy(worldA).add(worldB).add(worldC).multiplyScalar(1 / 3);
 
-                if (triangleCenter.y >= headBottom && Math.abs(triangleNormal.z) >= 0.70) {
-                  if (triangleNormal.z > 0) {
-                    materialIndex = foreMaterialIndex;
-                    usedForehand++;
-                  } else {
-                    materialIndex = backMaterialIndex;
-                    usedBackhand++;
-                  }
-                }
-              }
+              // The racket head occupies the upper part of the paddle. Its
+              // broad faces point along +/-Z after the model is oriented.
+              if (faceCenter.y < headBottom || Math.abs(faceNormal.z) < 0.72) continue;
 
-              if (materialIndex !== runMaterial) {
-                if (offset > runStart) rebuiltGroups.push({ start: runStart, count: offset - runStart, materialIndex: runMaterial });
-                runStart = offset;
-                runMaterial = materialIndex;
-              }
+              const target = faceNormal.z > 0 ? frontVertices : backVertices;
+              const offsetNormal = faceNormal.clone();
+              const layerOffset = 0.006;
+
+              // Work in assetRoot-local coordinates so each generated overlay
+              // inherits precisely the imported GLB's scale and orientation.
+              [worldA, worldB, worldC].forEach(vertex => {
+                const raised = vertex.clone().addScaledVector(offsetNormal, layerOffset);
+                assetRoot.worldToLocal(raised);
+                target.push(raised.x, raised.y, raised.z);
+              });
+
+              if (faceNormal.z > 0) counts.forehand++;
+              else counts.backhand++;
             }
-            if (end > runStart) rebuiltGroups.push({ start: runStart, count: end - runStart, materialIndex: runMaterial });
           });
-
-          if (usedForehand || usedBackhand) {
-            const clonedGeometry = sourceGeometry.clone();
-            clonedGeometry.clearGroups();
-            rebuiltGroups.forEach(group => clonedGeometry.addGroup(group.start, group.count, group.materialIndex));
-            object.geometry = clonedGeometry;
-            materials.push(foreRubber, backRubber);
-            object.material = materials;
-            object.userData.spinCraftRubberMaterials = { forehand: foreRubber, backhand: backRubber };
-            detected.forehand += usedForehand;
-            detected.backhand += usedBackhand;
-          } else {
-            // No broad face was detected on this mesh; preserve its GLB look.
-            object.material = Array.isArray(object.material) ? materials : materials[0];
-            foreRubber.map.dispose();
-            backRubber.map.dispose();
-            foreRubber.dispose();
-            backRubber.dispose();
-          }
         });
 
-        console.info("[SpinCraft] Paddle2.glb rubber face triangles detected:", detected);
+        function createRubberLayer(vertices, color, roughness, label) {
+          if (!vertices.length) return null;
+          const layerGeometry = new THREE.BufferGeometry();
+          layerGeometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+          layerGeometry.computeVertexNormals();
+          layerGeometry.computeBoundingSphere();
+
+          const texture = makeTexture(0xffffff, "#ffffff", true);
+          const material = new THREE.MeshStandardMaterial({
+            map: texture,
+            color: color,
+            roughness: roughness,
+            metalness: 0.01,
+            side: THREE.DoubleSide,
+            polygonOffset: true,
+            polygonOffsetFactor: -1,
+            polygonOffsetUnits: -1
+          });
+          const layer = new THREE.Mesh(layerGeometry, material);
+          layer.name = "SpinCraft generated " + label + " rubber overlay";
+          layer.castShadow = false;
+          layer.receiveShadow = true;
+          layer.renderOrder = 3;
+          assetRoot.add(layer);
+          return material;
+        }
+
+        const forehandMaterial = createRubberLayer(
+          frontVertices, forehands[state.forehand].color, forehands[state.forehand].roughness, "forehand"
+        );
+        const backhandMaterial = createRubberLayer(
+          backVertices, backhands[state.backhand].color, backhands[state.backhand].roughness, "backhand"
+        );
+
+        assetRoot.userData.spinCraftRubberMaterials = {
+          forehand: forehandMaterial,
+          backhand: backhandMaterial
+        };
+        assetRoot.userData.spinCraftOverlayCounts = counts;
+
+        if (!counts.forehand || !counts.backhand) {
+          console.warn("[SpinCraft] Could not generate both rubber overlays from Paddle2.glb. Face triangle counts:", counts);
+        } else {
+          console.info("[SpinCraft] Generated independent rubber overlays from Paddle2.glb:", counts);
+        }
+
         return assetRoot;
       }
 
@@ -519,13 +514,8 @@
             scene.add(model);
             fallback.style.display = "none";
             updateModelMaterials();
-            const roles = [];
-            model.traverse(object => {
-              if (object.userData && object.userData.spinCraftMaterialSlots) {
-                roles.push({ mesh: object.name || "unnamed mesh", materials: object.userData.spinCraftMaterialSlots });
-              }
-            });
-            console.info("[SpinCraft] Loaded Paddle2.glb. Semantic rubber slots:", roles);
+            console.info("[SpinCraft] Loaded original Paddle2.glb with generated rubber layers:",
+              model.children[0] && model.children[0].userData.spinCraftOverlayCounts);
           },
           undefined,
           error => {
