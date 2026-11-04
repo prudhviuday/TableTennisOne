@@ -89,7 +89,7 @@
     ].join("");
     document.head.appendChild(style);
     document.body.insertAdjacentHTML("beforeend",
-      '<div id="sc-cart-overlay" aria-hidden="true"><aside class="sc-cart-drawer" role="dialog" aria-modal="true" aria-labelledby="sc-cart-title"><div class="sc-cart-head"><div><small>SpinCraft · Your setup</small><h2 id="sc-cart-title">Your cart <span style="font-size:13px;color:#9a8982;font-weight:600" data-cart-count>0</span></h2></div><button class="sc-cart-close" type="button" data-cart-close aria-label="Close cart">×</button></div><div id="sc-cart-items"></div><div class="sc-cart-foot"><div class="sc-cart-subtotal"><span>Subtotal</span><strong id="sc-cart-total">₹0</strong></div><p class="sc-cart-note">Shipping and taxes are calculated at checkout. Online checkout is not connected in this preview.</p><button id="sc-checkout" type="button">Continue to checkout</button></div></aside></div>'
+      '<div id="sc-cart-overlay" aria-hidden="true"><aside class="sc-cart-drawer" role="dialog" aria-modal="true" aria-labelledby="sc-cart-title"><div class="sc-cart-head"><div><small>TTgo · Your setup</small><h2 id="sc-cart-title">Your cart <span style="font-size:13px;color:#9a8982;font-weight:600" data-cart-count>0</span></h2></div><button class="sc-cart-close" type="button" data-cart-close aria-label="Close cart">×</button></div><div id="sc-cart-items"></div><div class="sc-cart-foot"><div class="sc-cart-subtotal"><span>Subtotal</span><strong id="sc-cart-total">₹0</strong></div><p class="sc-cart-note">Shipping and taxes are calculated at checkout. Online checkout is not connected in this preview.</p><button id="sc-checkout" type="button">Continue to checkout</button></div></aside></div>'
     );
     render();
   };
