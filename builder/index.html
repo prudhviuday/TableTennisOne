@@ -451,6 +451,21 @@
           if (!vertices.length) return null;
           const layerGeometry = new THREE.BufferGeometry();
           layerGeometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+
+          // Generate UVs from the imported face coordinates so the rubber
+          // texture follows the actual 3D paddle surface.
+          let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+          for (let i = 0; i < vertices.length; i += 3) {
+            minX = Math.min(minX, vertices[i]); maxX = Math.max(maxX, vertices[i]);
+            minY = Math.min(minY, vertices[i + 1]); maxY = Math.max(maxY, vertices[i + 1]);
+          }
+          const width = Math.max(0.0001, maxX - minX);
+          const height = Math.max(0.0001, maxY - minY);
+          const uvs = [];
+          for (let i = 0; i < vertices.length; i += 3) {
+            uvs.push((vertices[i] - minX) / width, (vertices[i + 1] - minY) / height);
+          }
+          layerGeometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
           layerGeometry.computeVertexNormals();
           layerGeometry.computeBoundingSphere();
 
