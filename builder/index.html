@@ -385,17 +385,14 @@
           return point.y - rubberCutY(point.x);
         }
 
-        function cutIntersection(a, b, aInside) {
-          let low = 0;
-          let high = 1;
-          for (let i = 0; i < 24; i++) {
-            const t = (low + high) * 0.5;
-            const candidate = a.clone().lerp(b, t);
-            const candidateInside = signedCutDistance(candidate) >= 0;
-            if (candidateInside === aInside) low = t;
-            else high = t;
-          }
-          return a.clone().lerp(b, (low + high) * 0.5);
+        function cutIntersection(a, b) {
+          // The boundary is a straight horizontal plane, so its exact
+          // intersection is found directly without iterative subdivision.
+          const distanceA = signedCutDistance(a);
+          const distanceB = signedCutDistance(b);
+          const denominator = distanceA - distanceB;
+          const t = Math.abs(denominator) < 1e-8 ? 0.5 : distanceA / denominator;
+          return a.clone().lerp(b, Math.max(0, Math.min(1, t)));
         }
 
         function clipFaceAtHandleCut(points) {
@@ -406,7 +403,7 @@
             const currentInside = signedCutDistance(current) >= 0;
             const previousInside = signedCutDistance(previous) >= 0;
             if (currentInside) {
-              if (!previousInside) clipped.push(cutIntersection(previous, current, previousInside));
+              if (!previousInside) clipped.push(cutIntersection(previous, current));
               clipped.push(current.clone());
             } else if (previousInside) {
               clipped.push(cutIntersection(previous, current, previousInside));
@@ -481,17 +478,33 @@
           return ka < kb ? ka + "|" + kb : kb + "|" + ka;
         }
 
-        function createSolidLayer(sideFaces, options) {
+        function collectBoundaryEdges(sideFaces) {
+          const boundaries = new Map();
+          sideFaces.forEach(face => {
+            const polygon = face.points;
+            for (let i = 0; i < polygon.length; i++) {
+              const a = polygon[i];
+              const b = polygon[(i + 1) % polygon.length];
+              const key = edgeKey(a, b);
+              const existing = boundaries.get(key);
+              if (existing) existing.count++;
+              else boundaries.set(key, { a: a.clone(), b: b.clone(), normal: face.normal.clone(), count: 1 });
+            }
+          });
+          return Array.from(boundaries.values()).filter(edge => edge.count === 1);
+        }
+
+        function createSolidLayer(sideFaces, options, boundaryEdges) {
           if (!sideFaces.length) return null;
 
           const positions = [];
-          const boundaries = new Map();
           const lowerOffset = options.offset;
           const upperOffset = options.offset + options.thickness;
+          assetRoot.updateWorldMatrix(true, false);
+          const worldToAsset = new THREE.Matrix4().copy(assetRoot.matrixWorld).invert();
 
           function toRootLocal(point, normal, depth) {
-            const raised = point.clone().addScaledVector(normal, depth);
-            return assetRoot.worldToLocal(raised);
+            return point.clone().addScaledVector(normal, depth).applyMatrix4(worldToAsset);
           }
 
           function pushTriangle(a, b, c) {
@@ -520,21 +533,11 @@
               pushTriangle(bottomC, bottomB, bottomA);
             }
 
-            // Count polygon perimeter edges. Shared edges between adjacent
-            // source triangles disappear; only the outer rubber and handle
-            // cut edges receive visible solid side walls.
-            for (let i = 0; i < polygon.length; i++) {
-              const a = polygon[i];
-              const b = polygon[(i + 1) % polygon.length];
-              const key = edgeKey(a, b);
-              const existing = boundaries.get(key);
-              if (existing) existing.count++;
-              else boundaries.set(key, { a: a.clone(), b: b.clone(), normal: normal.clone(), count: 1 });
-            }
           });
 
-          boundaries.forEach(edge => {
-            if (edge.count !== 1) return;
+          // Reuse the same exposed edge list for sponge and top rubber:
+          // finding the outline is one of the more expensive geometry steps.
+          boundaryEdges.forEach(edge => {
             const lowA = toRootLocal(edge.a, edge.normal, lowerOffset);
             const lowB = toRootLocal(edge.b, edge.normal, lowerOffset);
             const highA = toRootLocal(edge.a, edge.normal, upperOffset);
@@ -585,6 +588,7 @@
 
           // Yellow sponge sits directly above the blade. The coloured rubber
           // sits on top of the sponge. Both are real extruded 3D meshes.
+          const boundaryEdges = collectBoundaryEdges(sideFaces);
           const sponge = createSolidLayer(sideFaces, {
             side: side,
             label: "yellow sponge",
@@ -595,7 +599,7 @@
             accent: "#fff0a8",
             darkTexture: false,
             renderOrder: 2
-          });
+          }, boundaryEdges);
           const rubber = createSolidLayer(sideFaces, {
             side: side,
             label: "top rubber",
@@ -606,7 +610,7 @@
             accent: "#ffffff",
             darkTexture: true,
             renderOrder: 3
-          });
+          }, boundaryEdges);
           return { sponge: sponge, rubber: rubber };
         }
 
@@ -637,18 +641,30 @@
         loader.load(
           "/assets/model/Paddle2.glb",
           gltf => {
-            model = new THREE.Group();
-            model.add(fitImportedPaddle(gltf.scene));
-            model.rotation.order = "YXZ";
-            model.rotation.y = state.view === "back" ? Math.PI : 0;
-            model.rotation.x = -0.08;
-            scene.add(model);
-            fallback.style.display = "none";
-            updateModelMaterials();
-            console.info("[SpinCraft] Loaded original Paddle2.glb with generated rubber layers:",
-              model.children[0] && model.children[0].userData.spinCraftOverlayCounts);
+            try {
+              fallback.innerHTML = "<strong>Finishing your paddle…</strong><span>Building the rubber and sponge layers.</span>";
+              model = new THREE.Group();
+              model.add(fitImportedPaddle(gltf.scene));
+              model.rotation.order = "YXZ";
+              model.rotation.y = state.view === "back" ? Math.PI : 0;
+              model.rotation.x = -0.08;
+              scene.add(model);
+              updateModelMaterials();
+              fallback.style.display = "none";
+              console.info("[SpinCraft] Loaded original Paddle2.glb with generated rubber layers:",
+                model.children[0] && model.children[0].userData.spinCraftOverlayCounts);
+            } catch (error) {
+              console.error("[SpinCraft] Paddle2.glb loaded but rubber layers could not be prepared:", error);
+              fallback.innerHTML = "<strong>Your paddle could not be prepared</strong><span>The model loaded, but its 3D rubber layers failed. Please refresh and check the browser console.</span>";
+              fallback.style.display = "flex";
+            }
           },
-          undefined,
+          progress => {
+            if (progress && progress.total) {
+              const percent = Math.round(progress.loaded / progress.total * 100);
+              fallback.innerHTML = "<strong>Loading your paddle… " + percent + "%</strong><span>Downloading the 3D model.</span>";
+            }
+          },
           error => {
             console.error("[SpinCraft] Could not load /assets/model/Paddle2.glb", error);
             fallback.innerHTML = "<strong>3D paddle couldn't load</strong><span>Check that assets/model/Paddle2.glb is deployed with the website. The configurator and pricing are still available.</span>";
