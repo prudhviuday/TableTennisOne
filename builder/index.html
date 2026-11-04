@@ -363,15 +363,10 @@
         const wholeSize = wholeBounds.getSize(new THREE.Vector3());
         const centerX = (wholeBounds.min.x + wholeBounds.max.x) * 0.5;
         const halfWidth = Math.max(0.0001, wholeSize.x * 0.5);
-        // The cut line sits at the base of the oval head, above the handle.
-        // It rises gently toward both shoulders, giving the rubber a shaped
-        // bottom edge rather than allowing it to run down onto the grip.
-        const headCutCenterY = wholeBounds.min.y + wholeSize.y * 0.32;
-        const shoulderRise = wholeSize.y * 0.055;
-        const rubberCutY = x => {
-          const across = Math.min(1, Math.abs((x - centerX) / halfWidth));
-          return headCutCenterY + shoulderRise * across * across;
-        };
+        // The rubber and sponge stop at a single straight horizontal
+        // cut across the bottom of the oval head. Do not follow the neck
+        // contour here: the wooden throat and handle must remain exposed.
+        const rubberCutY = wholeBounds.min.y + wholeSize.y * 0.32;
 
         const faces = { forehand: [], backhand: [] };
         const counts = { forehand: 0, backhand: 0 };
