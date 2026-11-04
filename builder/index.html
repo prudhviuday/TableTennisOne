@@ -336,13 +336,25 @@
             const active = !!state.forehand;
             layers.forehand.sponge.mesh.visible = active;
             layers.forehand.rubber.mesh.visible = active;
-            if (active) layers.forehand.rubber.material.roughness = forehand.roughness;
+            if (active) {
+              const material = layers.forehand.rubber.material;
+              material.roughness = forehand.roughness;
+              if (material.map) material.map.dispose();
+              material.map = makeTexture(forehand.color, "#ffffff", true);
+              material.needsUpdate = true;
+            }
           }
           if (layers.backhand && layers.backhand.rubber) {
             const active = !!state.backhand;
             layers.backhand.sponge.mesh.visible = active;
             layers.backhand.rubber.mesh.visible = active;
-            if (active) layers.backhand.rubber.material.roughness = backhand.roughness;
+            if (active) {
+              const material = layers.backhand.rubber.material;
+              material.roughness = backhand.roughness;
+              if (material.map) material.map.dispose();
+              material.map = makeTexture(backhand.color, "#ffffff", true);
+              material.needsUpdate = true;
+            }
           }
         });
       }
