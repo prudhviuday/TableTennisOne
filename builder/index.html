@@ -543,7 +543,10 @@
         });
 
         function pointKey(point) {
-          const q = value => Math.round(value * 100000);
+          // GLB exports often split coincident vertices at UV/material
+          // seams. A 1e-4 world-unit weld tolerance joins those vertices so
+          // internal triangle seams are not mistaken for exposed boundaries.
+          const q = value => Math.round(value * 10000);
           return q(point.x) + "," + q(point.y) + "," + q(point.z);
         }
 
@@ -578,8 +581,13 @@
           assetRoot.updateWorldMatrix(true, false);
           const worldToAsset = new THREE.Matrix4().copy(assetRoot.matrixWorld).invert();
 
+          // The imported racket face is a single near-planar surface. Keep
+          // every layer parallel to that face instead of offsetting each
+          // source triangle along its slightly different normal. Per-triangle
+          // offsets create tiny gaps, spikes and broken-looking edge strands.
+          const faceOffset = new THREE.Vector3(0, 0, options.side === "forehand" ? 1 : -1);
           function toRootLocal(point, normal, depth) {
-            return point.clone().addScaledVector(normal, depth).applyMatrix4(worldToAsset);
+            return point.clone().addScaledVector(faceOffset, depth).applyMatrix4(worldToAsset);
           }
 
           function pushTriangle(a, b, c) {
@@ -613,10 +621,10 @@
           // Reuse the same exposed edge list for sponge and top rubber:
           // finding the outline is one of the more expensive geometry steps.
           boundaryEdges.forEach(edge => {
-            const lowA = toRootLocal(edge.a, edge.normal, lowerOffset);
-            const lowB = toRootLocal(edge.b, edge.normal, lowerOffset);
-            const highA = toRootLocal(edge.a, edge.normal, upperOffset);
-            const highB = toRootLocal(edge.b, edge.normal, upperOffset);
+            const lowA = toRootLocal(edge.a, faceOffset, lowerOffset);
+            const lowB = toRootLocal(edge.b, faceOffset, lowerOffset);
+            const highA = toRootLocal(edge.a, faceOffset, upperOffset);
+            const highB = toRootLocal(edge.b, faceOffset, upperOffset);
             pushTriangle(lowA, lowB, highB);
             pushTriangle(lowA, highB, highA);
           });
