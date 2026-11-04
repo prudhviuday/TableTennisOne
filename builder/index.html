@@ -163,7 +163,7 @@
       document.querySelectorAll("[data-kind]").forEach(button => {
         button.addEventListener("click", () => {
           const kind = button.dataset.kind;
-          state[kind] = state[kind] === button.dataset.id ? null : button.dataset.id;
+          state[kind] = (kind !== "blade" && state[kind] === button.dataset.id) ? null : button.dataset.id;
           document.querySelectorAll('[data-kind="' + kind + '"]').forEach(option => option.classList.toggle("selected", option.dataset.id === state[kind]));
           refreshSummary();
         });
@@ -185,7 +185,10 @@
       }));
       $("addBuild").addEventListener("click", () => {
         if (!window.SpinCraftCart) { window.alert("The cart could not be loaded. Please refresh the page."); return; }
-        const details = blades[state.blade].name + " · FH: " + forehands[state.forehand].name + " · BH: " + backhands[state.backhand].name + " · " + state.thickness.toUpperCase() + " mm · " + grips[state.grip].name + " grip";
+        const details = blades[state.blade].name +
+          " · FH: " + (state.forehand ? forehands[state.forehand].name : "No rubber") +
+          " · BH: " + (state.backhand ? backhands[state.backhand].name : "No rubber") +
+          " · " + state.thickness.toUpperCase() + " mm · " + grips[state.grip].name + " grip";
         window.SpinCraftCart.add({ id: "custom-" + Date.now(), name: "Custom racket · " + blades[state.blade].name, price: getTotal(), details: details });
       });
 
