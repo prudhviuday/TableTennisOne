@@ -307,7 +307,6 @@
 
           const count = Math.max(30, Math.min(58, Math.round(width * height / 11200)));
           particles = Array.from({ length: count }, (_, index) => makeParticle(index));
-          draw(0);
         }
 
         function draw(timestamp) {
@@ -386,14 +385,17 @@
           new ResizeObserver(() => {
             previousTime = 0;
             resize();
+            if (reducedMotion) draw(0);
           }).observe(stage);
         } else {
           window.addEventListener("resize", () => {
             previousTime = 0;
             resize();
+            if (reducedMotion) draw(0);
           });
         }
-        if (!reducedMotion) frameId = requestAnimationFrame(draw);
+        if (reducedMotion) draw(0);
+        else frameId = requestAnimationFrame(draw);
       }
 
 
