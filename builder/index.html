@@ -321,17 +321,17 @@
         const forehand = forehands[state.forehand];
         const backhand = backhands[state.backhand];
         model.traverse(object => {
-          const rubberLayers = object.userData && object.userData.spinCraftRubberMaterials;
-          if (!rubberLayers) return;
-          if (rubberLayers.forehand) {
-            rubberLayers.forehand.color.setHex(forehand.color);
-            rubberLayers.forehand.roughness = forehand.roughness;
-            rubberLayers.forehand.needsUpdate = true;
+          const layers = object.userData && object.userData.spinCraftRubberMaterials;
+          if (!layers) return;
+          if (layers.forehand && layers.forehand.rubber) {
+            layers.forehand.rubber.color.setHex(forehand.color);
+            layers.forehand.rubber.roughness = forehand.roughness;
+            layers.forehand.rubber.needsUpdate = true;
           }
-          if (rubberLayers.backhand) {
-            rubberLayers.backhand.color.setHex(backhand.color);
-            rubberLayers.backhand.roughness = backhand.roughness;
-            rubberLayers.backhand.needsUpdate = true;
+          if (layers.backhand && layers.backhand.rubber) {
+            layers.backhand.rubber.color.setHex(backhand.color);
+            layers.backhand.rubber.roughness = backhand.roughness;
+            layers.backhand.rubber.needsUpdate = true;
           }
         });
       }
@@ -340,7 +340,7 @@
         const assetRoot = new THREE.Group();
         assetRoot.add(root);
 
-        // Keep the GLB's own racket shape and orient its longest axis vertically.
+        // Keep the uploaded GLB as the base model and orient its longest axis vertically.
         let bounds = new THREE.Box3().setFromObject(assetRoot);
         let size = bounds.getSize(new THREE.Vector3());
         if (size.x > size.y * 1.15 && size.x >= size.z) {
@@ -359,26 +359,66 @@
         assetRoot.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
         assetRoot.updateMatrixWorld(true);
 
-        // Build two new, independent rubber layers from Paddle2.glb's own
-        // racket-head triangles. The GLB meshes/materials remain untouched.
         const wholeBounds = new THREE.Box3().setFromObject(assetRoot);
         const wholeSize = wholeBounds.getSize(new THREE.Vector3());
-        const headBottom = wholeBounds.min.y + wholeSize.y * 0.32;
-        const frontVertices = [];
-        const backVertices = [];
-        const counts = { forehand: 0, backhand: 0 };
+        const centerX = (wholeBounds.min.x + wholeBounds.max.x) * 0.5;
+        const halfWidth = Math.max(0.0001, wholeSize.x * 0.5);
+        // The cut line sits at the base of the oval head, above the handle.
+        // It rises gently toward both shoulders, giving the rubber a shaped
+        // bottom edge rather than allowing it to run down onto the grip.
+        const headCutCenterY = wholeBounds.min.y + wholeSize.y * 0.32;
+        const shoulderRise = wholeSize.y * 0.055;
+        const rubberCutY = x => {
+          const across = Math.min(1, Math.abs((x - centerX) / halfWidth));
+          return headCutCenterY + shoulderRise * across * across;
+        };
 
+        const faces = { forehand: [], backhand: [] };
+        const counts = { forehand: 0, backhand: 0 };
         const localA = new THREE.Vector3();
         const localB = new THREE.Vector3();
         const localC = new THREE.Vector3();
         const edgeAB = new THREE.Vector3();
         const edgeAC = new THREE.Vector3();
         const faceNormal = new THREE.Vector3();
-        const faceCenter = new THREE.Vector3();
         const worldA = new THREE.Vector3();
         const worldB = new THREE.Vector3();
         const worldC = new THREE.Vector3();
         const normalMatrix = new THREE.Matrix3();
+
+        function signedCutDistance(point) {
+          return point.y - rubberCutY(point.x);
+        }
+
+        function cutIntersection(a, b, aInside) {
+          let low = 0;
+          let high = 1;
+          for (let i = 0; i < 24; i++) {
+            const t = (low + high) * 0.5;
+            const candidate = a.clone().lerp(b, t);
+            const candidateInside = signedCutDistance(candidate) >= 0;
+            if (candidateInside === aInside) low = t;
+            else high = t;
+          }
+          return a.clone().lerp(b, (low + high) * 0.5);
+        }
+
+        function clipFaceAtHandleCut(points) {
+          const clipped = [];
+          for (let i = 0; i < points.length; i++) {
+            const current = points[i];
+            const previous = points[(i + points.length - 1) % points.length];
+            const currentInside = signedCutDistance(current) >= 0;
+            const previousInside = signedCutDistance(previous) >= 0;
+            if (currentInside) {
+              if (!previousInside) clipped.push(cutIntersection(previous, current, previousInside));
+              clipped.push(current.clone());
+            } else if (previousInside) {
+              clipped.push(cutIntersection(previous, current, previousInside));
+            }
+          }
+          return clipped;
+        }
 
         assetRoot.traverse(object => {
           if (!object.isMesh || !object.geometry) return;
@@ -419,93 +459,174 @@
               edgeAC.subVectors(localC, localA);
               faceNormal.crossVectors(edgeAB, edgeAC).normalize();
               faceNormal.applyMatrix3(normalMatrix).normalize();
+              if (Math.abs(faceNormal.z) < 0.72) continue;
 
               worldA.copy(localA).applyMatrix4(object.matrixWorld);
               worldB.copy(localB).applyMatrix4(object.matrixWorld);
               worldC.copy(localC).applyMatrix4(object.matrixWorld);
-              faceCenter.copy(worldA).add(worldB).add(worldC).multiplyScalar(1 / 3);
 
-              // The racket head occupies the upper part of the paddle. Its
-              // broad faces point along +/-Z after the model is oriented.
-              if (faceCenter.y < headBottom || Math.abs(faceNormal.z) < 0.72) continue;
+              const facePolygon = clipFaceAtHandleCut([worldA, worldB, worldC]);
+              if (facePolygon.length < 3) continue;
 
-              const target = faceNormal.z > 0 ? frontVertices : backVertices;
-              const offsetNormal = faceNormal.clone();
-              const layerOffset = 0.006;
-
-              // Work in assetRoot-local coordinates so each generated overlay
-              // inherits precisely the imported GLB's scale and orientation.
-              [worldA, worldB, worldC].forEach(vertex => {
-                const raised = vertex.clone().addScaledVector(offsetNormal, layerOffset);
-                assetRoot.worldToLocal(raised);
-                target.push(raised.x, raised.y, raised.z);
-              });
-
-              if (faceNormal.z > 0) counts.forehand++;
-              else counts.backhand++;
+              const side = faceNormal.z > 0 ? "forehand" : "backhand";
+              faces[side].push({ points: facePolygon, normal: faceNormal.clone() });
+              counts[side]++;
             }
           });
         });
 
-        function createRubberLayer(vertices, color, roughness, label) {
-          if (!vertices.length) return null;
-          const layerGeometry = new THREE.BufferGeometry();
-          layerGeometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+        function pointKey(point) {
+          const q = value => Math.round(value * 100000);
+          return q(point.x) + "," + q(point.y) + "," + q(point.z);
+        }
 
-          // Generate UVs from the imported face coordinates so the rubber
-          // texture follows the actual 3D paddle surface.
+        function edgeKey(a, b) {
+          const ka = pointKey(a);
+          const kb = pointKey(b);
+          return ka < kb ? ka + "|" + kb : kb + "|" + ka;
+        }
+
+        function createSolidLayer(sideFaces, options) {
+          if (!sideFaces.length) return null;
+
+          const positions = [];
+          const boundaries = new Map();
+          const lowerOffset = options.offset;
+          const upperOffset = options.offset + options.thickness;
+
+          function toRootLocal(point, normal, depth) {
+            const raised = point.clone().addScaledVector(normal, depth);
+            return assetRoot.worldToLocal(raised);
+          }
+
+          function pushTriangle(a, b, c) {
+            positions.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
+          }
+
+          sideFaces.forEach(face => {
+            const polygon = face.points;
+            const normal = face.normal;
+
+            // A clipped triangle can become a quad. Fan triangulation keeps
+            // its exact imported outline, including the curved head perimeter.
+            for (let i = 1; i < polygon.length - 1; i++) {
+              const baseA = polygon[0];
+              const baseB = polygon[i];
+              const baseC = polygon[i + 1];
+
+              const topA = toRootLocal(baseA, normal, upperOffset);
+              const topB = toRootLocal(baseB, normal, upperOffset);
+              const topC = toRootLocal(baseC, normal, upperOffset);
+              const bottomA = toRootLocal(baseA, normal, lowerOffset);
+              const bottomB = toRootLocal(baseB, normal, lowerOffset);
+              const bottomC = toRootLocal(baseC, normal, lowerOffset);
+
+              pushTriangle(topA, topB, topC);
+              pushTriangle(bottomC, bottomB, bottomA);
+            }
+
+            // Count polygon perimeter edges. Shared edges between adjacent
+            // source triangles disappear; only the outer rubber and handle
+            // cut edges receive visible solid side walls.
+            for (let i = 0; i < polygon.length; i++) {
+              const a = polygon[i];
+              const b = polygon[(i + 1) % polygon.length];
+              const key = edgeKey(a, b);
+              const existing = boundaries.get(key);
+              if (existing) existing.count++;
+              else boundaries.set(key, { a: a.clone(), b: b.clone(), normal: normal.clone(), count: 1 });
+            }
+          });
+
+          boundaries.forEach(edge => {
+            if (edge.count !== 1) return;
+            const lowA = toRootLocal(edge.a, edge.normal, lowerOffset);
+            const lowB = toRootLocal(edge.b, edge.normal, lowerOffset);
+            const highA = toRootLocal(edge.a, edge.normal, upperOffset);
+            const highB = toRootLocal(edge.b, edge.normal, upperOffset);
+            pushTriangle(lowA, lowB, highB);
+            pushTriangle(lowA, highB, highA);
+          });
+
+          const layerGeometry = new THREE.BufferGeometry();
+          layerGeometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+
+          // UVs are generated from the imported face coordinates, so the
+          // rubber grain follows the shape rather than using a flat picture.
           let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-          for (let i = 0; i < vertices.length; i += 3) {
-            minX = Math.min(minX, vertices[i]); maxX = Math.max(maxX, vertices[i]);
-            minY = Math.min(minY, vertices[i + 1]); maxY = Math.max(maxY, vertices[i + 1]);
+          for (let i = 0; i < positions.length; i += 3) {
+            minX = Math.min(minX, positions[i]); maxX = Math.max(maxX, positions[i]);
+            minY = Math.min(minY, positions[i + 1]); maxY = Math.max(maxY, positions[i + 1]);
           }
           const width = Math.max(0.0001, maxX - minX);
           const height = Math.max(0.0001, maxY - minY);
           const uvs = [];
-          for (let i = 0; i < vertices.length; i += 3) {
-            uvs.push((vertices[i] - minX) / width, (vertices[i + 1] - minY) / height);
+          for (let i = 0; i < positions.length; i += 3) {
+            uvs.push((positions[i] - minX) / width, (positions[i + 1] - minY) / height);
           }
           layerGeometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
           layerGeometry.computeVertexNormals();
           layerGeometry.computeBoundingSphere();
 
-          const texture = makeTexture(0xffffff, "#ffffff", true);
           const material = new THREE.MeshStandardMaterial({
-            map: texture,
-            color: color,
-            roughness: roughness,
-            metalness: 0.01,
-            side: THREE.DoubleSide,
-            polygonOffset: true,
-            polygonOffsetFactor: -1,
-            polygonOffsetUnits: -1
+            map: makeTexture(0xffffff, options.accent, options.darkTexture),
+            color: options.color,
+            roughness: options.roughness,
+            metalness: 0.005,
+            side: THREE.DoubleSide
           });
-          const layer = new THREE.Mesh(layerGeometry, material);
-          layer.name = "SpinCraft generated " + label + " rubber overlay";
-          layer.castShadow = false;
-          layer.receiveShadow = true;
-          layer.renderOrder = 3;
-          assetRoot.add(layer);
+          const mesh = new THREE.Mesh(layerGeometry, material);
+          mesh.name = "SpinCraft " + options.label + " " + options.side + " layer";
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+          mesh.renderOrder = options.renderOrder;
+          assetRoot.add(mesh);
           return material;
         }
 
-        const forehandMaterial = createRubberLayer(
-          frontVertices, forehands[state.forehand].color, forehands[state.forehand].roughness, "forehand"
-        );
-        const backhandMaterial = createRubberLayer(
-          backVertices, backhands[state.backhand].color, backhands[state.backhand].roughness, "backhand"
-        );
+        function buildSideLayers(side, color, roughness) {
+          const sideFaces = faces[side];
+          if (!sideFaces.length) return null;
 
+          // Yellow sponge sits directly above the blade. The coloured rubber
+          // sits on top of the sponge. Both are real extruded 3D meshes.
+          const sponge = createSolidLayer(sideFaces, {
+            side: side,
+            label: "yellow sponge",
+            offset: 0.006,
+            thickness: 0.035,
+            color: 0xe6bf42,
+            roughness: 0.88,
+            accent: "#fff0a8",
+            darkTexture: false,
+            renderOrder: 2
+          });
+          const rubber = createSolidLayer(sideFaces, {
+            side: side,
+            label: "top rubber",
+            offset: 0.043,
+            thickness: 0.014,
+            color: color,
+            roughness: roughness,
+            accent: "#ffffff",
+            darkTexture: true,
+            renderOrder: 3
+          });
+          return { sponge: sponge, rubber: rubber };
+        }
+
+        const forehandLayers = buildSideLayers("forehand", forehands[state.forehand].color, forehands[state.forehand].roughness);
+        const backhandLayers = buildSideLayers("backhand", backhands[state.backhand].color, backhands[state.backhand].roughness);
         assetRoot.userData.spinCraftRubberMaterials = {
-          forehand: forehandMaterial,
-          backhand: backhandMaterial
+          forehand: forehandLayers,
+          backhand: backhandLayers
         };
         assetRoot.userData.spinCraftOverlayCounts = counts;
 
         if (!counts.forehand || !counts.backhand) {
-          console.warn("[SpinCraft] Could not generate both rubber overlays from Paddle2.glb. Face triangle counts:", counts);
+          console.warn("[SpinCraft] Could not build both rubber/sponge sides from Paddle2.glb. Face triangle counts:", counts);
         } else {
-          console.info("[SpinCraft] Generated independent rubber overlays from Paddle2.glb:", counts);
+          console.info("[SpinCraft] Built shaped rubber and yellow sponge layers on Paddle2.glb:", counts);
         }
 
         return assetRoot;
