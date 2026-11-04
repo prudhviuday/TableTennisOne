@@ -361,12 +361,62 @@
 
         const wholeBounds = new THREE.Box3().setFromObject(assetRoot);
         const wholeSize = wholeBounds.getSize(new THREE.Vector3());
-        const centerX = (wholeBounds.min.x + wholeBounds.max.x) * 0.5;
-        const halfWidth = Math.max(0.0001, wholeSize.x * 0.5);
-        // The rubber and sponge stop at a single straight horizontal
-        // cut across the bottom of the oval head. Do not follow the neck
-        // contour here: the wooden throat and handle must remain exposed.
-        const rubberCutY = wholeBounds.min.y + wholeSize.y * 0.32;
+
+        // Find the actual handle-to-head transition from the imported GLB
+        // silhouette. A fixed percentage of total racket height is unreliable:
+        // handle lengths and blade proportions differ between source models.
+        // The handle is narrow; the oval head is substantially wider.
+        const profileBins = 120;
+        const profile = Array.from({ length: profileBins }, () => ({
+          minX: Infinity, maxX: -Infinity, samples: 0
+        }));
+        const profilePosition = new THREE.Vector3();
+        assetRoot.traverse(object => {
+          if (!object.isMesh || !object.geometry) return;
+          const attribute = object.geometry.getAttribute("position");
+          if (!attribute) return;
+          object.updateWorldMatrix(true, false);
+          for (let i = 0; i < attribute.count; i++) {
+            profilePosition.fromBufferAttribute(attribute, i).applyMatrix4(object.matrixWorld);
+            const ratio = (profilePosition.y - wholeBounds.min.y) / Math.max(1e-8, wholeSize.y);
+            const binIndex = Math.max(0, Math.min(profileBins - 1, Math.floor(ratio * profileBins)));
+            const bin = profile[binIndex];
+            bin.minX = Math.min(bin.minX, profilePosition.x);
+            bin.maxX = Math.max(bin.maxX, profilePosition.x);
+            bin.samples++;
+          }
+        });
+
+        const widths = profile.map(bin => bin.samples ? bin.maxX - bin.minX : 0);
+        const smoothedWidths = widths.map((width, i) => {
+          let total = 0, samples = 0;
+          for (let j = Math.max(0, i - 2); j <= Math.min(profileBins - 1, i + 2); j++) {
+            if (widths[j] > 0) { total += widths[j]; samples++; }
+          }
+          return samples ? total / samples : 0;
+        });
+        const maximumHeadWidth = Math.max(...smoothedWidths);
+        const headWidthThreshold = maximumHeadWidth * 0.40;
+        let transitionBin = -1;
+        for (let i = 1; i < profileBins; i++) {
+          if (smoothedWidths[i] >= headWidthThreshold &&
+              smoothedWidths.slice(Math.max(0, i - 2), i + 3).filter(width => width >= headWidthThreshold).length >= 3) {
+            transitionBin = i;
+            break;
+          }
+        }
+        // If the model has no measurable handle/head transition, use a
+        // conservative lower-head fallback rather than clipping at 32% height.
+        const cutRatio = transitionBin >= 0
+          ? (transitionBin + 0.5) / profileBins
+          : 0.36;
+        const rubberCutY = wholeBounds.min.y + wholeSize.y * cutRatio;
+        console.info("[SpinCraft] Detected straight rubber cutoff:", {
+          y: Number(rubberCutY.toFixed(4)),
+          heightRatio: Number(cutRatio.toFixed(3)),
+          headWidth: Number(maximumHeadWidth.toFixed(4)),
+          detected: transitionBin >= 0
+        });
 
         const faces = { forehand: [], backhand: [] };
         const counts = { forehand: 0, backhand: 0 };
