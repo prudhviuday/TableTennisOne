@@ -142,14 +142,17 @@
       };
       const state = { blade: "carbon", forehand: "blaze", backhand: "night", thickness: "2.1", grip: "flared", view: "front" };
       const money = (n) => "₹" + n.toLocaleString("en-IN");
-      const getTotal = () => blades[state.blade].price + forehands[state.forehand].price + backhands[state.backhand].price + (thicknesses[state.thickness] * 2) + grips[state.grip].price;
+      const getTotal = () => blades[state.blade].price +
+        (state.forehand ? forehands[state.forehand].price : 0) +
+        (state.backhand ? backhands[state.backhand].price : 0) +
+        (state.thickness ? thicknesses[state.thickness] * 2 : 0) + grips[state.grip].price;
       const $ = (id) => document.getElementById(id);
 
       function refreshSummary() {
         $("sumBlade").textContent = blades[state.blade].name;
-        $("sumForehand").textContent = forehands[state.forehand].name;
-        $("sumBackhand").textContent = backhands[state.backhand].name;
-        $("sumFinish").textContent = state.thickness.toUpperCase() + " mm · " + grips[state.grip].name;
+        $("sumForehand").textContent = state.forehand ? forehands[state.forehand].name : "No rubber";
+        $("sumBackhand").textContent = state.backhand ? backhands[state.backhand].name : "No rubber";
+        $("sumFinish").textContent = (state.thickness ? state.thickness.toUpperCase() + " mm" : "No sponge") + " · " + grips[state.grip].name;
         $("previewBlade").textContent = blades[state.blade].name;
         $("previewGrip").textContent = grips[state.grip].name + " grip";
         $("totalPrice").textContent = money(getTotal());
@@ -160,8 +163,8 @@
       document.querySelectorAll("[data-kind]").forEach(button => {
         button.addEventListener("click", () => {
           const kind = button.dataset.kind;
-          state[kind] = button.dataset.id;
-          document.querySelectorAll('[data-kind="' + kind + '"]').forEach(option => option.classList.toggle("selected", option === button));
+          state[kind] = state[kind] === button.dataset.id ? null : button.dataset.id;
+          document.querySelectorAll('[data-kind="' + kind + '"]').forEach(option => option.classList.toggle("selected", option.dataset.id === state[kind]));
           refreshSummary();
         });
       });
@@ -196,20 +199,23 @@
         const canvasTexture = document.createElement("canvas");
         canvasTexture.width = 256; canvasTexture.height = 256;
         const ctx = canvasTexture.getContext("2d");
-        ctx.fillStyle = "#" + baseColor.toString(16).padStart(6, "0"); ctx.fillRect(0, 0, 256, 256);
-        const shade = dark ? "rgba(255,255,255,.075)" : "rgba(70,15,12,.10)";
-        ctx.strokeStyle = shade; ctx.lineWidth = 2;
-        for (let y = 0; y < 256; y += 13) {
-          for (let x = 0; x < 256; x += 13) {
-            ctx.beginPath(); ctx.arc(x + ((y / 13) % 2) * 6, y, 1.7, 0, Math.PI * 2); ctx.fillStyle = shade; ctx.fill();
+        ctx.fillStyle = "#" + baseColor.toString(16).padStart(6, "0");
+        ctx.fillRect(0, 0, 256, 256);
+        // Restrained micro-grain; no pale diagonal marks that wash red toward pink.
+        ctx.fillStyle = dark ? "rgba(255,255,255,.035)" : "rgba(18,0,0,.075)";
+        for (let y = 4; y < 256; y += 8) {
+          for (let x = 4; x < 256; x += 8) {
+            ctx.beginPath();
+            ctx.arc(x + ((y / 8) % 2) * 4, y, 0.75, 0, Math.PI * 2);
+            ctx.fill();
           }
         }
-        ctx.strokeStyle = accentColor; ctx.globalAlpha = 0.17; ctx.lineWidth = 1;
-        for (let i = -256; i < 512; i += 25) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i + 256, 256); ctx.stroke(); }
-        ctx.globalAlpha = 1;
         const texture = new THREE.CanvasTexture(canvasTexture);
-        texture.wrapS = THREE.RepeatWrapping; texture.wrapT = THREE.RepeatWrapping; texture.encoding = THREE.sRGBEncoding;
-        texture.repeat.set(2.2, 2.2); texture.anisotropy = 4;
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        texture.encoding = THREE.sRGBEncoding;
+        texture.repeat.set(2.2, 2.2);
+        texture.anisotropy = 4;
         return texture;
       }
 
@@ -324,14 +330,16 @@
           const layers = object.userData && object.userData.spinCraftRubberMaterials;
           if (!layers) return;
           if (layers.forehand && layers.forehand.rubber) {
-            layers.forehand.rubber.color.setHex(forehand.color);
-            layers.forehand.rubber.roughness = forehand.roughness;
-            layers.forehand.rubber.needsUpdate = true;
+            const active = !!state.forehand;
+            layers.forehand.sponge.mesh.visible = active;
+            layers.forehand.rubber.mesh.visible = active;
+            if (active) layers.forehand.rubber.material.roughness = forehand.roughness;
           }
           if (layers.backhand && layers.backhand.rubber) {
-            layers.backhand.rubber.color.setHex(backhand.color);
-            layers.backhand.rubber.roughness = backhand.roughness;
-            layers.backhand.rubber.needsUpdate = true;
+            const active = !!state.backhand;
+            layers.backhand.sponge.mesh.visible = active;
+            layers.backhand.rubber.mesh.visible = active;
+            if (active) layers.backhand.rubber.material.roughness = backhand.roughness;
           }
         });
       }
@@ -407,9 +415,11 @@
         }
         // If the model has no measurable handle/head transition, use a
         // conservative lower-head fallback rather than clipping at 32% height.
-        const cutRatio = transitionBin >= 0
+        const detectedCutRatio = transitionBin >= 0
           ? (transitionBin + 0.5) / profileBins
           : 0.36;
+        // Raise the straight edge by about 12% of normalized racket height.
+        const cutRatio = Math.min(0.78, detectedCutRatio + 0.04);
         const rubberCutY = wholeBounds.min.y + wholeSize.y * cutRatio;
         console.info("[SpinCraft] Detected straight rubber cutoff:", {
           y: Number(rubberCutY.toFixed(4)),
@@ -617,8 +627,8 @@
           layerGeometry.computeBoundingSphere();
 
           const material = new THREE.MeshStandardMaterial({
-            map: makeTexture(0xffffff, options.accent, options.darkTexture),
-            color: options.color,
+            map: makeTexture(options.color, options.accent, options.darkTexture),
+            color: 0xffffff,
             roughness: options.roughness,
             metalness: 0.005,
             side: THREE.DoubleSide
@@ -629,7 +639,7 @@
           mesh.receiveShadow = true;
           mesh.renderOrder = options.renderOrder;
           assetRoot.add(mesh);
-          return material;
+          return { material: material, mesh: mesh };
         }
 
         function buildSideLayers(side, color, roughness) {
@@ -653,8 +663,8 @@
           const rubber = createSolidLayer(sideFaces, {
             side: side,
             label: "top rubber",
-            offset: 0.043,
-            thickness: 0.014,
+            offset: 0.039,
+            thickness: 0.018,
             color: color,
             roughness: roughness,
             accent: "#ffffff",
@@ -744,11 +754,18 @@
         scene = new THREE.Scene();
         camera = new THREE.PerspectiveCamera(36, stage.clientWidth / stage.clientHeight, 0.1, 100);
         camera.position.set(0, -0.03, 6.7);
-        scene.add(new THREE.HemisphereLight(0xffffff, 0x9d7662, 1.55));
-        const keyLight = new THREE.DirectionalLight(0xffffff, 2.0);
-        keyLight.position.set(-3.5, 4.5, 6); keyLight.castShadow = true; keyLight.shadow.mapSize.set(1024, 1024); scene.add(keyLight);
-        const fillLight = new THREE.DirectionalLight(0xffc8aa, 1.0); fillLight.position.set(4, 0, 4); scene.add(fillLight);
-        const backLight = new THREE.DirectionalLight(0xffffff, 1.0); backLight.position.set(0, 3, -4); scene.add(backLight);
+        scene.add(new THREE.HemisphereLight(0xffffff, 0x55423a, 0.72));
+        const keyLight = new THREE.DirectionalLight(0xffffff, 1.05);
+        keyLight.position.set(-3.5, 4.5, 6);
+        keyLight.castShadow = true;
+        keyLight.shadow.mapSize.set(1024, 1024);
+        scene.add(keyLight);
+        const fillLight = new THREE.DirectionalLight(0xffffff, 0.28);
+        fillLight.position.set(4, 0, 4);
+        scene.add(fillLight);
+        const backLight = new THREE.DirectionalLight(0xffffff, 0.38);
+        backLight.position.set(0, 3, -4);
+        scene.add(backLight);
         const floor = new THREE.Mesh(new THREE.CircleGeometry(2.15, 64), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.21 }));
         floor.rotation.x = -Math.PI / 2; floor.position.set(0, -1.1, -0.65); scene.add(floor);
         loadPaddleModel();
