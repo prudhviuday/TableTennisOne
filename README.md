@@ -1,4 +1,4 @@
-# SpinCraft — Table Tennis Storefront
+# TTgo — Table Tennis Storefront
 
 A responsive static storefront prototype for table-tennis equipment, with an interactive 3D custom-racket configurator.
 
