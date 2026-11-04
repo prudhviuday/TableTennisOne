@@ -58,6 +58,40 @@
     @media(max-width:760px){.hud-radar{width:min(92%,430px);top:46%;opacity:.72}.hud-bracket.bracket-tl{left:12px;top:64px}.hud-bracket.bracket-tr{right:12px;top:64px}.hud-bracket.bracket-bl{left:12px;bottom:56px}.hud-bracket.bracket-br{right:12px;bottom:56px}.hud-readout{font-size:7px}.hud-readout.readout-left{left:18px;top:116px}.hud-readout.readout-right{right:18px;bottom:94px}}
     @media(prefers-reduced-motion:reduce){.hud-radar:after,.hud-radar-ring,.hud-blip{animation:none!important}}
 
+
+    /* Ember JARVIS visual layer: warm neon nodes and moving signal paths. */
+    .stage{background:radial-gradient(ellipse at 50% 43%,#48251f 0%,#281b1b 48%,#171416 100%)}
+    .stage:before{inset:0;left:0;top:0;width:auto;height:auto;aspect-ratio:auto;border:0;border-radius:0;transform:none;box-shadow:none;background:radial-gradient(ellipse at 50% 43%,#f36c3b16 0%,#b64c2c0b 38%,transparent 72%),radial-gradient(ellipse at 10% 90%,#a6473020 0%,transparent 42%);animation:emberAmbient 9s ease-in-out infinite alternate}
+    .stage:after{color:#f49a6a0b}
+    .hud-particle-field{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none;background:radial-gradient(ellipse at 24% 25%,#fa8a4b0d 0%,transparent 42%),radial-gradient(ellipse at 78% 75%,#cf422c12 0%,transparent 46%),linear-gradient(135deg,#fff1d408,transparent 56%)}
+    #ambient-particles{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:.96}
+    .ember-scanline{position:absolute;left:-8%;right:-8%;top:-30%;height:115px;background:linear-gradient(180deg,transparent,#ff87500a 38%,#ff8a4a20 50%,#ff87500a 62%,transparent);filter:blur(2px);animation:emberScan 12s linear infinite}
+    .hud-bracket{width:31px;height:31px;border-color:#ff9b6945}
+    .hud-bracket.bracket-tl{left:24px;top:72px;border-width:1px 0 0 1px}
+    .hud-bracket.bracket-tr{right:24px;top:72px;border-width:1px 1px 0 0}
+    .hud-bracket.bracket-bl{left:24px;bottom:62px;border-width:0 0 1px 1px}
+    .hud-bracket.bracket-br{right:24px;bottom:62px;border-width:0 1px 1px 0}
+    .hud-readout{color:#f1c4a15c;font:700 8px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.14em}
+    .hud-readout em{color:#ff9a668f}
+    .hud-readout.readout-left{left:34px;top:132px}
+    .hud-readout.readout-right{right:34px;bottom:105px;text-align:right}
+    .hud-data-mark{position:absolute;color:#ffc49a5c;font:700 7px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.16em}
+    .hud-data-mark.data-mark-a{left:35px;bottom:104px}
+    .hud-data-mark.data-mark-b{right:35px;top:126px}
+    .stage-status{border-color:#ff9b6933;background:#261817dc;color:#e9b79b}
+    .stage-status i{background:#ffad70;box-shadow:0 0 0 4px #ffad7020}
+    .stage-status b{color:#ff8b58}
+    .view-controls{background:#241918dd;border-color:#ff9b6933}
+    .view-button{color:#d7ad96}
+    .view-button.active{background:#813b2b;color:#fff0e4;box-shadow:0 2px 12px #ed69401e}
+    .round-action{border-color:#ff9b6933;background:#241918dd;color:#f1c8ae}
+    .round-action:hover{background:#643126;color:#fff4e9}
+    .stage-hint{border-color:#ff9b6933;background:#241918dd;color:#e4b59c}
+    @keyframes emberAmbient{0%{opacity:.72;filter:saturate(.85)}100%{opacity:1;filter:saturate(1.2)}}
+    @keyframes emberScan{0%{transform:translateY(-8%);opacity:0}14%{opacity:.8}80%{opacity:.48}100%{transform:translateY(680px);opacity:0}}
+    @media(max-width:760px){.hud-bracket.bracket-tl{left:12px;top:64px}.hud-bracket.bracket-tr{right:12px;top:64px}.hud-bracket.bracket-bl{left:12px;bottom:56px}.hud-bracket.bracket-br{right:12px;bottom:56px}.hud-readout{font-size:7px}.hud-readout.readout-left{left:18px;top:116px}.hud-readout.readout-right{right:18px;bottom:94px}.hud-data-mark.data-mark-a{left:19px;bottom:96px}.hud-data-mark.data-mark-b{right:19px;top:112px}}
+    @media(prefers-reduced-motion:reduce){.stage:before,.ember-scanline{animation:none!important}}
+
   </style>
 </head>
 <body>
@@ -77,7 +111,7 @@
       <section class="stage-card" aria-label="Interactive 3D racket preview">
         <div class="stage-head"><div><strong>Your racket · Live preview</strong><small>Materials and components update as you build</small></div><div class="live-pill"><i class="live-dot"></i> Live model</div></div>
         <div class="stage" id="stage">
-          <div class="hud-radar" aria-hidden="true"><span class="hud-radar-ring"></span><span class="hud-radar-ring ring-inner"></span><span class="hud-radar-axis"></span><span class="hud-radar-axis axis-horizontal"></span><i class="hud-blip blip-a"></i><i class="hud-blip blip-b"></i><i class="hud-blip blip-c"></i></div><span class="hud-bracket bracket-tl" aria-hidden="true"></span><span class="hud-bracket bracket-tr" aria-hidden="true"></span><span class="hud-bracket bracket-bl" aria-hidden="true"></span><span class="hud-bracket bracket-br" aria-hidden="true"></span><div class="hud-readout readout-left" aria-hidden="true">SPINCRAFT / LAB<em>OPTIC LINK: ACTIVE</em>RUBBER SURFACE SCAN</div><div class="hud-readout readout-right" aria-hidden="true">BLADE PROFILE<em>3D / LIVE MATERIALS</em>ROTATION TRACKING</div><div class="stage-atmosphere" aria-hidden="true"><span class="ambient-orb orb-a"></span><span class="ambient-orb orb-b"></span><span class="orbit-ring"></span><span class="orbit-ring ring-two"></span><span class="blueprint-crosshair crosshair-a"></span><span class="blueprint-crosshair crosshair-b"></span><span class="blueprint-sweep"></span><span class="blueprint-label">SPINCRAFT / BLADE PROFILE / 3D MODEL</span></div>
+          <div class="hud-particle-field" aria-hidden="true"><canvas id="ambient-particles"></canvas><span class="ember-scanline"></span><span class="hud-bracket bracket-tl"></span><span class="hud-bracket bracket-tr"></span><span class="hud-bracket bracket-bl"></span><span class="hud-bracket bracket-br"></span><div class="hud-readout readout-left">SPINCRAFT / NEURAL LINK<em>OPTIC SYSTEM: ONLINE</em>RUBBER SURFACE ANALYSIS</div><div class="hud-readout readout-right">BLADE PROFILE<em>LIVE MATERIAL RENDER</em>ROTATION TRACKING</div><div class="hud-data-mark data-mark-a">SC / 01</div><div class="hud-data-mark data-mark-b">SIGNAL 98.6%</div></div>
           <div class="view-controls" role="group" aria-label="Racket side">
             <button class="view-button active" data-view="front" type="button">Forehand</button>
             <button class="view-button" data-view="back" type="button">Backhand</button>
@@ -222,6 +256,146 @@
       const canvas = $("racket-canvas");
       const stage = $("stage");
       const fallback = $("stageFallback");
+
+      function initEmberParticles() {
+        const particleCanvas = $("ambient-particles");
+        if (!particleCanvas) return;
+        const ctx = particleCanvas.getContext("2d");
+        if (!ctx) return;
+
+        const palette = [
+          { color: "#ff8b50", rgb: "255,139,80" },
+          { color: "#f0523e", rgb: "240,82,62" },
+          { color: "#ffb36f", rgb: "255,179,111" },
+          { color: "#ffe6ce", rgb: "255,230,206" },
+          { color: "#c94d36", rgb: "201,77,54" }
+        ];
+        const reducedMotion = window.matchMedia &&
+          window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        let width = 0;
+        let height = 0;
+        let dpr = 1;
+        let particles = [];
+        let frameId = 0;
+        let previousTime = 0;
+
+        function makeParticle(index) {
+          const tone = palette[Math.floor(Math.random() * palette.length)];
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 5 + Math.random() * 15;
+          return {
+            x: Math.random() * width,
+            y: Math.random() * height,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed * 0.72 - 1.5,
+            tone: tone,
+            radius: 0.75 + Math.random() * 1.55,
+            phase: Math.random() * Math.PI * 2,
+            pulse: 0.65 + Math.random() * 0.7,
+            bright: index % 8 === 0
+          };
+        }
+
+        function resize() {
+          const rect = particleCanvas.getBoundingClientRect();
+          width = Math.max(1, rect.width);
+          height = Math.max(1, rect.height);
+          dpr = Math.min(window.devicePixelRatio || 1, 1.6);
+          particleCanvas.width = Math.round(width * dpr);
+          particleCanvas.height = Math.round(height * dpr);
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+          const count = Math.max(30, Math.min(58, Math.round(width * height / 11200)));
+          particles = Array.from({ length: count }, (_, index) => makeParticle(index));
+          draw(0);
+        }
+
+        function draw(timestamp) {
+          if (!width || !height) return;
+          const delta = previousTime ? Math.min(0.034, (timestamp - previousTime) / 1000) : 0.016;
+          previousTime = timestamp;
+          ctx.clearRect(0, 0, width, height);
+
+          // Fine connection lines create a moving neural-network / HUD field.
+          ctx.globalCompositeOperation = "lighter";
+          const linkDistance = Math.max(74, Math.min(112, width * 0.18));
+          for (let i = 0; i < particles.length; i++) {
+            const a = particles[i];
+            for (let j = i + 1; j < particles.length; j++) {
+              const b = particles[j];
+              const dx = a.x - b.x;
+              const dy = a.y - b.y;
+              const distance = Math.sqrt(dx * dx + dy * dy);
+              if (distance > linkDistance) continue;
+              const alpha = (1 - distance / linkDistance) * 0.17;
+              ctx.beginPath();
+              ctx.moveTo(a.x, a.y);
+              ctx.lineTo(b.x, b.y);
+              ctx.strokeStyle = "rgba(242,116,66," + alpha.toFixed(3) + ")";
+              ctx.lineWidth = 0.55;
+              ctx.stroke();
+            }
+          }
+
+          for (const particle of particles) {
+            const pulse = 0.7 + (Math.sin(timestamp * 0.0014 + particle.phase) + 1) * 0.22 * particle.pulse;
+
+            // Short directional traces make the moving points feel like data packets.
+            ctx.beginPath();
+            ctx.moveTo(particle.x - particle.vx * 0.72, particle.y - particle.vy * 0.72);
+            ctx.lineTo(particle.x, particle.y);
+            ctx.strokeStyle = "rgba(" + particle.tone.rgb + "," + (particle.bright ? 0.35 : 0.19) + ")";
+            ctx.lineWidth = particle.bright ? 1.15 : 0.7;
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(particle.x, particle.y, particle.radius * pulse, 0, Math.PI * 2);
+            ctx.fillStyle = particle.tone.color;
+            ctx.shadowColor = particle.tone.color;
+            ctx.shadowBlur = particle.bright ? 15 : 8;
+            ctx.fill();
+
+            if (particle.bright) {
+              ctx.beginPath();
+              ctx.arc(particle.x, particle.y, 0.7, 0, Math.PI * 2);
+              ctx.fillStyle = "#fff4e8";
+              ctx.shadowColor = "#fff0da";
+              ctx.shadowBlur = 10;
+              ctx.fill();
+            }
+            ctx.shadowBlur = 0;
+
+            if (!reducedMotion) {
+              particle.x += particle.vx * delta;
+              particle.y += particle.vy * delta;
+              particle.phase += delta * 0.7;
+
+              if (particle.x < -14) particle.x = width + 14;
+              if (particle.x > width + 14) particle.x = -14;
+              if (particle.y < -14) particle.y = height + 14;
+              if (particle.y > height + 14) particle.y = -14;
+            }
+          }
+
+          ctx.globalCompositeOperation = "source-over";
+          if (!reducedMotion) frameId = requestAnimationFrame(draw);
+        }
+
+        resize();
+        if (window.ResizeObserver) {
+          new ResizeObserver(() => {
+            previousTime = 0;
+            resize();
+          }).observe(stage);
+        } else {
+          window.addEventListener("resize", () => {
+            previousTime = 0;
+            resize();
+          });
+        }
+        if (!reducedMotion) frameId = requestAnimationFrame(draw);
+      }
+
 
       let markVLogoPromise = null;
 
@@ -1165,6 +1339,7 @@
         $("autoRotate").title = autoRotate ? "Pause automatic rotation" : "Resume automatic rotation";
       });
 
+      initEmberParticles();
       try { init3D(); }
       catch (error) {
         canvas.style.display = "none";
